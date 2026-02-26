@@ -1,0 +1,25 @@
+# ===== Frontend =====
+frontend/node_modules/
+frontend/.next/
+frontend/.env*.local
+frontend/out/
+
+# ===== Backend (Python/Poetry) =====
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/.venv/
+backend/venv/
+backend/.env
+backend/.env.*
+backend/dist/
+backend/*.egg-info/
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.swp

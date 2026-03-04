@@ -23,6 +23,10 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://${DB_USER:-user}:${DB_PASSWORD:-password}@db:5432/moodbrief_db
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+      OPENROUTER_TEXT_MODEL: ${OPENROUTER_TEXT_MODEL:-}
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-}
     depends_on:
       db:
         condition: service_healthy
@@ -35,7 +39,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     depends_on:
       - backend
 

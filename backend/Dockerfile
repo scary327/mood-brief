@@ -15,7 +15,12 @@ RUN pip install --no-cache-dir "fastapi>=0.133.1,<0.134.0" \
     "sqlalchemy>=2.0.47,<3.0.0" \
     "psycopg2-binary>=2.9.11,<3.0.0" \
     "pydantic-settings>=2.13.1,<3.0.0" \
-    "python-multipart>=0.0.22,<0.0.23"
+    "python-multipart>=0.0.22,<0.0.23" \
+    "httpx>=0.28.0,<1.0.0" \
+    "fpdf2>=2.8.0,<3.0.0"
+
+# Создаём директорию для генерированных PDF
+RUN mkdir -p /app/generated
 
 # Копируем исходники приложения
 COPY app ./app

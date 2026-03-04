@@ -1,28 +1,37 @@
 "use client";
 
-import { useState } from "react";
-import { Button, Input, Popover, Tooltip } from "antd";
+import { useState, useCallback } from "react";
+import {
+  Button,
+  Input,
+  Popover,
+  Tooltip,
+  Upload,
+  Spin,
+  Alert,
+  Divider,
+} from "antd";
 import {
   PlusOutlined,
   LinkOutlined,
-  UploadOutlined,
   CheckOutlined,
   FontSizeOutlined,
   BgColorsOutlined,
   PictureOutlined,
   FileTextOutlined,
   ArrowRightOutlined,
+  InboxOutlined,
+  LoadingOutlined,
 } from "@ant-design/icons";
+import { useRouter } from "next/navigation";
+import { useProjectStore } from "@/store/projectStore";
+import TagList from "./TagList";
 
 const { TextArea } = Input;
+const { Dragger } = Upload;
 
-/* ───────── mock data ───────── */
-const MOCK_REFERENCES = Array.from({ length: 6 }, (_, i) => ({
-  id: `ref-${i}`,
-  selected: i < 3,
-}));
-
-const MOCK_FONTS = [
+/* ───────── mock fonts (same as before) ───────── */
+const FONTS = [
   { name: "Inter", style: "font-sans", category: "Sans-serif" },
   { name: "Playfair Display", style: "font-serif", category: "Serif" },
   { name: "Space Grotesk", style: "font-mono", category: "Sans-serif" },
@@ -31,7 +40,7 @@ const MOCK_FONTS = [
   { name: "JetBrains Mono", style: "font-mono", category: "Monospace" },
 ];
 
-const MOCK_COLORS = [
+const PRESET_COLORS = [
   "#1d1d1f",
   "#3b82f6",
   "#8b5cf6",
@@ -69,49 +78,77 @@ function SectionHeader({
 
 /* ───────── main form ───────── */
 export default function MoodBoardForm() {
-  const [selectedRefs, setSelectedRefs] = useState<Set<string>>(
-    new Set(MOCK_REFERENCES.filter((r) => r.selected).map((r) => r.id)),
-  );
-  const [selectedFonts, setSelectedFonts] = useState<Set<string>>(
-    new Set(["Inter", "Playfair Display"]),
-  );
-  const [selectedColors, setSelectedColors] = useState<Set<string>>(
-    new Set(["#1d1d1f", "#3b82f6", "#8b5cf6"]),
-  );
+  const router = useRouter();
+
+  const {
+    projectName,
+    setProjectName,
+    description,
+    setDescription,
+    selectedFonts,
+    toggleFont,
+    selectedColors,
+    toggleColor,
+    addColor,
+    uploadedFiles,
+    setUploadedFiles,
+    tags,
+    removeTag,
+    isAnalyzing,
+    isGenerating,
+    error,
+    uploadAndAnalyze,
+    doGenerateBrief,
+    projectId,
+  } = useProjectStore();
+
   const [customColors, setCustomColors] = useState<string[]>([]);
   const [pickerColor, setPickerColor] = useState("#6366f1");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pinterestLink, setPinterestLink] = useState("");
-  const [projectName, setProjectName] = useState("");
-  const [description, setDescription] = useState("");
+  const [previews, setPreviews] = useState<string[]>([]);
 
   const addCustomColor = () => {
     setCustomColors((prev) =>
       prev.includes(pickerColor) ? prev : [...prev, pickerColor],
     );
+    addColor(pickerColor);
     setPickerOpen(false);
   };
 
-  const toggleRef = (id: string) =>
-    setSelectedRefs((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  const handleFilesChange = useCallback(
+    (fileList: File[]) => {
+      setUploadedFiles(fileList);
+      // Generate previews
+      const urls = fileList.map((f) => URL.createObjectURL(f));
+      setPreviews(urls);
+    },
+    [setUploadedFiles],
+  );
 
-  const toggleFont = (name: string) =>
-    setSelectedFonts((prev) => {
-      const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
-      return next;
-    });
+  const handleAnalyze = async () => {
+    await uploadAndAnalyze();
+  };
 
-  const toggleColor = (hex: string) =>
-    setSelectedColors((prev) => {
-      const next = new Set(prev);
-      next.has(hex) ? next.delete(hex) : next.add(hex);
-      return next;
-    });
+  const handleGenerate = async () => {
+    const result = await doGenerateBrief(description);
+    if (result) {
+      router.push(`/brief/${result.project_id}`);
+    }
+  };
+
+  const hasFiles = uploadedFiles.length > 0;
+  const hasTags =
+    tags.length > 0 &&
+    tags.some(
+      (t) =>
+        t.color_palette.length > 0 ||
+        t.style.length > 0 ||
+        t.typography.length > 0 ||
+        t.composition.length > 0 ||
+        t.visual_hooks.length > 0 ||
+        t.ui_elements.length > 0,
+    );
 
   return (
     <div className="container !gap-8">
@@ -146,54 +183,97 @@ export default function MoodBoardForm() {
         <SectionHeader
           icon={<PictureOutlined />}
           title="Референсы"
-          subtitle="Выберите подходящие изображения, загрузите свои или вставьте ссылки"
+          subtitle="Загрузите изображения для AI-анализа — от 1 до 10 файлов"
         />
 
-        {/* Image grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
-          {MOCK_REFERENCES.map((ref) => {
-            const active = selectedRefs.has(ref.id);
-            return (
-              <button
-                key={ref.id}
-                type="button"
-                onClick={() => toggleRef(ref.id)}
-                className={`
-                  relative aspect-[4/3] rounded-2xl transition-all duration-200 cursor-pointer border-2 overflow-hidden group
-                  ${
-                    active
-                      ? "border-[#1d1d1f] shadow-[0_0_0_2px_rgba(29,29,31,0.15)]"
-                      : "border-transparent hover:border-black/10"
-                  }
-                `}
-              >
-                {/* Grey placeholder */}
-                <div
-                  className={`
-                    w-full h-full transition-colors duration-200
-                    ${active ? "bg-[#d4d4d8]" : "bg-[#e4e4e7] group-hover:bg-[#d4d4d8]"}
-                  `}
-                />
-                {/* Check badge */}
-                {active && (
-                  <div className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-[#1d1d1f] flex items-center justify-center shadow-lg">
-                    <CheckOutlined className="text-white text-xs" />
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {/* Drag & Drop zone */}
+        <Dragger
+          multiple
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          maxCount={10}
+          showUploadList={false}
+          beforeUpload={(file, fileList) => {
+            // Collect all files without auto-uploading
+            const allFiles = [...uploadedFiles];
+            for (const f of fileList) {
+              if (
+                !allFiles.some(
+                  (existing) =>
+                    existing.name === f.name && existing.size === f.size,
+                )
+              ) {
+                allFiles.push(f);
+              }
+            }
+            handleFilesChange(allFiles);
+            return false; // prevent auto upload
+          }}
+          className="!rounded-2xl !border-2 !border-dashed !border-black/10 !bg-white/30 hover:!border-black/20 !transition-all"
+        >
+          <p className="text-4xl text-[#4b4b53]/40 mb-3">
+            <InboxOutlined />
+          </p>
+          <p className="text-base text-[#4b4b53]/70">
+            Перетащите изображения сюда или нажмите для выбора
+          </p>
+          <p className="text-sm text-[#4b4b53]/40 mt-1">
+            JPG, PNG, WebP • до 10 МБ каждый
+          </p>
+        </Dragger>
 
-        {/* Actions row */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            icon={<UploadOutlined />}
-            shape="round"
-            className="!bg-white/60 !border-black/6"
-          >
-            Загрузить изображения
-          </Button>
+        {/* Previews */}
+        {previews.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-5">
+            {previews.map((src, i) => (
+              <div
+                key={i}
+                className="relative aspect-[4/3] rounded-2xl overflow-hidden border-2 border-[#1d1d1f] shadow-[0_0_0_2px_rgba(29,29,31,0.15)]"
+              >
+                <img
+                  src={src}
+                  alt={`Preview ${i + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-[#1d1d1f] flex items-center justify-center shadow-lg">
+                  <CheckOutlined className="text-white text-xs" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Analyze button */}
+        {hasFiles && !hasTags && (
+          <div className="mt-5 text-center">
+            <Button
+              type="primary"
+              size="large"
+              shape="round"
+              loading={isAnalyzing}
+              icon={isAnalyzing ? <LoadingOutlined /> : undefined}
+              className="!h-12 !px-10 !text-base !bg-[#1d1d1f] !border-[#1d1d1f] !shadow-[0_8px_24px_rgba(29,29,31,0.2)]"
+              onClick={handleAnalyze}
+              disabled={!projectName.trim()}
+            >
+              {isAnalyzing
+                ? "AI анализирует изображения..."
+                : "Проанализировать изображения"}
+            </Button>
+          </div>
+        )}
+
+        {/* Analyzing spinner */}
+        {isAnalyzing && (
+          <div className="mt-5 flex flex-col items-center gap-3">
+            <Spin size="large" />
+            <p className="text-sm text-[#4b4b53]/60 animate-pulse">
+              Модель распознаёт стиль, цвета и композицию...
+            </p>
+          </div>
+        )}
+
+        {/* Pinterest link */}
+        <div className="flex flex-wrap gap-2 mt-5">
           <div className="flex gap-2 flex-1 min-w-[250px]">
             <Input
               prefix={<LinkOutlined className="text-[#4b4b53]/50" />}
@@ -214,6 +294,18 @@ export default function MoodBoardForm() {
         </div>
       </div>
 
+      {/* ── AI Tags ── */}
+      {hasTags && (
+        <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
+          <SectionHeader
+            icon={<span className="text-xl">🤖</span>}
+            title="Распознанные теги"
+            subtitle="Результат AI-анализа ваших изображений. Удалите лишние теги перед генерацией."
+          />
+          <TagList tags={tags} onRemove={removeTag} />
+        </div>
+      )}
+
       {/* ── Fonts ── */}
       <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
         <SectionHeader
@@ -222,7 +314,7 @@ export default function MoodBoardForm() {
           subtitle="Выберите шрифты, отражающие стиль проекта"
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {MOCK_FONTS.map((font) => {
+          {FONTS.map((font) => {
             const active = selectedFonts.has(font.name);
             return (
               <button
@@ -268,7 +360,7 @@ export default function MoodBoardForm() {
 
         {/* Color grid */}
         <div className="flex flex-wrap gap-3 mb-5">
-          {[...MOCK_COLORS, ...customColors].map((hex) => {
+          {[...PRESET_COLORS, ...customColors].map((hex) => {
             const active = selectedColors.has(hex);
             return (
               <Tooltip key={hex} title={hex}>
@@ -367,6 +459,18 @@ export default function MoodBoardForm() {
         />
       </div>
 
+      {/* ── Error ── */}
+      {error && (
+        <Alert
+          type="error"
+          message="Ошибка"
+          description={error}
+          showIcon
+          closable
+          className="!rounded-2xl"
+        />
+      )}
+
       {/* ── Submit ── */}
       <div className="text-center pb-4">
         <Button
@@ -374,10 +478,23 @@ export default function MoodBoardForm() {
           size="large"
           shape="round"
           icon={<ArrowRightOutlined />}
+          loading={isGenerating}
+          disabled={!hasTags || isGenerating}
           className="!h-14 !px-12 !text-[1.1rem] !bg-[#1d1d1f] !border-[#1d1d1f] !shadow-[0_8px_24px_rgba(29,29,31,0.2)]"
+          onClick={handleGenerate}
         >
-          Сгенерировать ТЗ
+          {isGenerating ? "Генерация ТЗ..." : "Сгенерировать ТЗ"}
         </Button>
+        {!hasTags && hasFiles && !isAnalyzing && (
+          <p className="text-sm text-[#4b4b53]/50 mt-3">
+            Сначала проанализируйте загруженные изображения
+          </p>
+        )}
+        {!hasFiles && (
+          <p className="text-sm text-[#4b4b53]/50 mt-3">
+            Загрузите изображения для начала работы
+          </p>
+        )}
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import base64
 import httpx
 
 async def main():
-    api_key = os.environ.get("OPENROUTER_API_KEY", "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")
+    api_key = os.environ.get("OPENROUTER_API_KEY")
     model = "google/gemini-2.0-flash-lite-preview-02-05:free"
     
     # create dummy 1x1 png image

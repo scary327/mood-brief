@@ -3,8 +3,10 @@ import json
 import logging
 
 import httpx
+from fastapi import HTTPException
 
 from app.config import settings
+
 from app.schemas import ImageTagSet
 
 logger = logging.getLogger(__name__)
@@ -22,9 +24,9 @@ Output Format (JSON strictly):
   "visual_hooks": ["необычные графические приемы", "текстуры", "эффекты"]
 }
 
-Constraint: Будь максимально специфичным. Вместо "синий" пиши "глубокий кобальтовый #0047AB". Вместо "современный стиль" пиши "швейцарский минимализм с элементами нео-брутализма". Не упускай ни одной мелкой детали: шум, зернистость, толщина линий, тип разделителей.
-
-IMPORTANT: Return ONLY the raw JSON object — no markdown, no code fences, no commentary."""
+Constraint: Будь максимально специфичным. Максимум 10 элементов в каждом списке. Не повторяйся. Если видишь много похожих цветов, объедини их в один.
+      
+IMPORTANT: Верни ТОЛЬКО чистый объект JSON — без markdown блоков (```json ... ```), без вводного текста и комментариев. Твой ответ должен начинаться с { и заканчиваться на }. """
 
 
 async def deconstruct_image_to_tags(image_bytes: bytes, filename: str = "") -> ImageTagSet:
@@ -54,34 +56,65 @@ async def deconstruct_image_to_tags(image_bytes: bytes, filename: str = "") -> I
                 ],
             }
         ],
-        "max_tokens": 1024,
-        "temperature": 0.2,
+        "max_tokens": 2048,
+        "temperature": 0.1,
     }
+
+
+    if not settings.OPENROUTER_API_KEY:
+        logger.error("OPENROUTER_API_KEY is not set!")
+        # We don't raise here to allow the app to start, but the request will fail
 
     headers = {
         "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://moodbrief.app",
-        "X-Title": "MoodBrief",
+        "HTTP-Referer": settings.OPENROUTER_REFERER,
+        "X-Title": settings.OPENROUTER_TITLE,
     }
 
     async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(
-            f"{settings.OPENROUTER_BASE_URL}/chat/completions",
-            json=payload,
-            headers=headers,
-        )
-        resp.raise_for_status()
-        data = resp.json()
+        try:
+            resp = await client.post(
+                f"{settings.OPENROUTER_BASE_URL}/chat/completions",
+                json=payload,
+                headers=headers,
+            )
+            if resp.status_code == 403:
+                error_data = resp.json().get("error", {})
+                error_msg = error_data.get("message", "OpenRouter API key or Referer rejected")
+                logger.error("OpenRouter 403 Forbidden: %s", error_msg)
+                raise HTTPException(status_code=403, detail=f"OpenRouter: {error_msg}")
+
+            
+            resp.raise_for_status()
+            data = resp.json()
+        except HTTPException:
+            # Re-raise FastAPIs HTTPException as-is
+            raise
+        except httpx.HTTPStatusError as e:
+            logger.error("OpenRouter API error: %s", e.response.text)
+            raise HTTPException(status_code=e.response.status_code, detail=f"OpenRouter error: {e.response.text}")
+        except httpx.ConnectTimeout:
+            logger.error("Timeout connecting to OpenRouter")
+            raise HTTPException(status_code=504, detail="OpenRouter connection timed out")
+        except Exception as e:
+            logger.exception("Connection error to OpenRouter: %r", e)
+            raise HTTPException(status_code=500, detail=f"Failed to connect to OpenRouter: {type(e).__name__}")
+
+
 
     raw_text = data["choices"][0]["message"]["content"].strip()
 
-    # Strip possible markdown code fences
-    if raw_text.startswith("```"):
-        raw_text = raw_text.split("\n", 1)[1]  # remove first ``` line
-        if raw_text.endswith("```"):
-            raw_text = raw_text[: -len("```")]
-        raw_text = raw_text.strip()
+
+    # Robust JSON extraction
+    try:
+        # Find first { and last }
+        start = raw_text.find("{")
+        end = raw_text.rfind("}")
+        if start != -1 and end != -1:
+            raw_text = raw_text[start : end + 1]
+    except Exception:
+        pass
 
     try:
         parsed = json.loads(raw_text)

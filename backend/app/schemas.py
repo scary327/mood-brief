@@ -36,6 +36,7 @@ class GenerateBriefRequest(BaseModel):
     user_notes: str = ""
     selected_fonts: list[str] = Field(default_factory=list)
     selected_colors: list[str] = Field(default_factory=list)
+    template_id: str = "standard"
 
 
 class GenerateBriefResponse(BaseModel):
@@ -57,6 +58,7 @@ class ProjectOut(BaseModel):
     brief_markdown: Optional[str] = ""
     pdf_filename: Optional[str] = ""
     status: str = "draft"
+    template_id: Optional[str] = "standard"
     created_at: datetime
 
     class Config:

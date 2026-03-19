@@ -10,7 +10,9 @@ import {
   Spin,
   Alert,
   Divider,
+  Select,
 } from "antd";
+
 import {
   PlusOutlined,
   LinkOutlined,
@@ -100,7 +102,10 @@ export default function MoodBoardForm() {
     uploadAndAnalyze,
     doGenerateBrief,
     projectId,
+    templateId,
+    setTemplateId,
   } = useProjectStore();
+
 
   const [customColors, setCustomColors] = useState<string[]>([]);
   const [pickerColor, setPickerColor] = useState("#6366f1");
@@ -441,6 +446,26 @@ export default function MoodBoardForm() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Template Selection ── */}
+      <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
+        <SectionHeader
+          icon={<FileTextOutlined />}
+          title="Шаблон документа"
+          subtitle="Выберите стиль оформления технического задания"
+        />
+        <Select
+          className="w-full !h-12"
+          value={templateId}
+          onChange={setTemplateId}
+          options={[
+            { value: "standard", label: "Стандартное ТЗ (IT-стиль)" },
+            { value: "gost", label: "ГОСТ 34.602-2020 (Техническое задание)" },
+            { value: "creative", label: "Креативный бриф" },
+
+          ]}
+        />
       </div>
 
       {/* ── Description ── */}

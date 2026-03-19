@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from typing import Optional
 
@@ -22,12 +23,9 @@ async def analyze_images(
     files: list[UploadFile] = File(...),
     project_name: str = Form("Untitled Project"),
     description: str = Form(""),
-    selected_fonts: str = Form("[]"),  # JSON-encoded array
-    selected_colors: str = Form("[]"),
     db: Session = Depends(get_db),
 ):
     """Upload images → run AI Vision analysis → return structured tags."""
-    import json as _json
 
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
@@ -41,21 +39,9 @@ async def analyze_images(
             )
 
     # Create project
-    try:
-        fonts_list = _json.loads(selected_fonts)
-    except _json.JSONDecodeError:
-        fonts_list = []
-
-    try:
-        colors_list = _json.loads(selected_colors)
-    except _json.JSONDecodeError:
-        colors_list = []
-
     project = Project(
         name=project_name,
         description=description,
-        selected_fonts=fonts_list,
-        selected_colors=colors_list,
         status="analyzing",
     )
     db.add(project)

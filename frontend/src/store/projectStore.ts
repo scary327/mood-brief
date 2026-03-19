@@ -14,6 +14,7 @@ interface ProjectStore {
   projectId: string | null;
   projectName: string;
   description: string;
+  templateId: string;
   selectedFonts: Set<string>;
   selectedColors: Set<string>;
   isAnalyzing: boolean;
@@ -25,6 +26,7 @@ interface ProjectStore {
   /* ── actions ── */
   setProjectName: (name: string) => void;
   setDescription: (desc: string) => void;
+  setTemplateId: (id: string) => void;
   toggleFont: (font: string) => void;
   toggleColor: (hex: string) => void;
   addColor: (hex: string) => void;
@@ -45,6 +47,7 @@ const initialState = {
   projectId: null as string | null,
   projectName: "",
   description: "",
+  templateId: "standard",
   selectedFonts: new Set(["Inter", "Playfair Display"]),
   selectedColors: new Set(["#1d1d1f", "#3b82f6", "#8b5cf6"]),
   isAnalyzing: false,
@@ -59,6 +62,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   setProjectName: (name) => set({ projectName: name }),
   setDescription: (desc) => set({ description: desc }),
+  setTemplateId: (id) => set({ templateId: id }),
 
   toggleFont: (font) =>
     set((s) => {
@@ -99,8 +103,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       uploadedFiles,
       projectName,
       description,
-      selectedFonts,
-      selectedColors,
     } = get();
     if (uploadedFiles.length === 0) return null;
 
@@ -110,8 +112,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         uploadedFiles,
         projectName || "Untitled Project",
         description,
-        [...selectedFonts],
-        [...selectedColors],
       );
       set({
         projectId: result.project_id,
@@ -127,7 +127,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   doGenerateBrief: async (userNotes) => {
-    const { projectId, tags, selectedFonts, selectedColors } = get();
+    const { projectId, tags, templateId, selectedFonts, selectedColors } = get();
     if (!projectId) return null;
 
     set({ isGenerating: true, error: null });
@@ -135,6 +135,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const result = await generateBrief(
         projectId,
         tags,
+        templateId,
         userNotes,
         [...selectedFonts],
         [...selectedColors],

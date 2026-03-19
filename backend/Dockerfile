@@ -1,23 +1,40 @@
-FROM python:3.11-slim
+# ЭТАП 1: Сборка зависимостей
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
 
-# Системные зависимости (libpq нужна для psycopg2)
+# Устанавливаем poetry
+RUN pip install poetry==1.8.3
+
+# Системные зависимости для сборки (psycopg2)
+RUN apt-get update && apt-get install -y build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml poetry.lock* ./
+
+# Устанавливаем зависимости (без dev-групп)
+RUN poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
+
+# ЭТАП 2: Рантайм
+FROM python:3.11-slim AS runner
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+# libpq нужна для работы psycopg2 в рантайме
 RUN apt-get update && apt-get install -y libpq-dev && rm -rf /var/lib/apt/lists/*
 
-# Копируем только манифест и ставим зависимости через pip
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir "fastapi>=0.133.1,<0.134.0" \
-    "uvicorn>=0.41.0,<0.42.0" \
-    "sqlalchemy>=2.0.47,<3.0.0" \
-    "psycopg2-binary>=2.9.11,<3.0.0" \
-    "pydantic-settings>=2.13.1,<3.0.0" \
-    "python-multipart>=0.0.22,<0.0.23" \
-    "httpx>=0.28.0,<1.0.0" \
-    "fpdf2>=2.8.0,<3.0.0"
+# Копируем виртуальное окружение
+COPY --from=builder /app/.venv /app/.venv
 
 # Создаём директорию для генерированных PDF
 RUN mkdir -p /app/generated

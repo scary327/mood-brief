@@ -24,20 +24,29 @@ async def generate_brief(body: GenerateBriefRequest, db: Session = Depends(get_d
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Use confirmed tags if provided, else fall back to stored ones
-    if body.confirmed_tags:
-        tags = body.confirmed_tags
-    else:
-        tags = [ImageTagSet(**t) for t in (project.image_tags or [])]
+    project.template_id = body.template_id
+    project.selected_fonts = body.selected_fonts
+    project.selected_colors = body.selected_colors
+    project.image_tags = [t.model_dump() for t in body.confirmed_tags]
+    
+    # If user provided notes, update description
+    if body.user_notes:
+        project.description = body.user_notes
+        
+    db.commit()
 
+
+    # Generate via AI
     markdown = await generate_brief_via_ai(
-        tags=tags,
+        tags=body.confirmed_tags,
         project_name=project.name,
         description=project.description or "",
-        selected_fonts=body.selected_fonts or project.selected_fonts,
-        selected_colors=body.selected_colors or project.selected_colors,
+        selected_fonts=body.selected_fonts,
+        selected_colors=body.selected_colors,
+        template_id=body.template_id,
         user_notes=body.user_notes,
     )
+
 
     pdf_filename = generate_brief_pdf(markdown, project_name=project.name)
 

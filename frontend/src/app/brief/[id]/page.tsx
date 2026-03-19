@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Button, Spin, Alert, message } from "antd";
+import { Button, Spin, Alert, message, Rate, Input } from "antd";
 import {
   ArrowLeftOutlined,
   DownloadOutlined,
   HomeOutlined,
   CopyOutlined,
+  SendOutlined,
 } from "@ant-design/icons";
 import { getProject, getBriefPdfUrl, type ProjectOut } from "@/lib/api";
-import TagList from "@/components/moodboard/TagList";
-import type { ImageTagSet } from "@/lib/api";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function BriefPage() {
   const params = useParams();
@@ -22,6 +23,13 @@ export default function BriefPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Feedback state
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
   useEffect(() => {
     if (!id) return;
     getProject(id)
@@ -30,9 +38,43 @@ export default function BriefPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const handleCopyMarkdown = () => {
+    if (project?.brief_markdown) {
+      navigator.clipboard.writeText(project.brief_markdown);
+      message.success("Markdown скопирован в буфер обмена!");
+    }
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (rating === 0) {
+      message.warning("Пожалуйста, поставьте оценку (1-5 звёзд)");
+      return;
+    }
+    setFeedbackLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_id: id,
+          rating,
+          comment,
+        }),
+      });
+      const data = await res.json();
+      setFeedbackMessage(data.message || "Спасибо за обратную связь!");
+      setFeedbackSent(true);
+    } catch {
+      setFeedbackMessage("Мы учтём ваши пожелания. Спасибо за обратную связь!");
+      setFeedbackSent(true);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="container !justify-center !items-center !min-h-screen">
+      <div className="container" style={{ justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
         <Spin size="large" />
         <p className="text-[#4b4b53]/60 mt-4">Загрузка проекта...</p>
       </div>
@@ -41,13 +83,13 @@ export default function BriefPage() {
 
   if (error || !project) {
     return (
-      <div className="container !justify-center !items-center !min-h-screen">
+      <div className="container" style={{ justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
         <Alert
           type="error"
           message="Ошибка загрузки"
           description={error || "Проект не найден"}
           showIcon
-          className="!rounded-2xl !max-w-md"
+          className="rounded-2xl max-w-md"
         />
         <Button
           className="mt-4"
@@ -62,39 +104,51 @@ export default function BriefPage() {
 
   const pdfUrl = project.pdf_filename ? getBriefPdfUrl(id) : null;
 
-  const handleCopyMarkdown = () => {
-    if (project?.brief_markdown) {
-      navigator.clipboard.writeText(project.brief_markdown);
-      message.success("Markdown скопирован в буфер обмена!");
-    }
-  };
-
   return (
-    <div className="container !gap-8">
+    <div className="container" style={{ gap: "2rem" }}>
       {/* Header */}
       <div>
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
-          className="!text-[#4b4b53] !mb-4"
+          style={{ color: "#4b4b53", marginBottom: "1rem" }}
           onClick={() => router.push("/moodboard")}
         >
           Назад к мудборду
         </Button>
         <div className="text-center">
-          <h1 className="text-[2.5rem] font-extrabold bg-gradient-to-r from-[#1d1d1f] to-[#7d7d85] bg-clip-text text-transparent tracking-[-0.04em] leading-tight mb-2">
+          <h1
+            style={{
+              fontSize: "2.5rem",
+              fontWeight: 800,
+              background: "linear-gradient(to right, #1d1d1f, #7d7d85)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              letterSpacing: "-0.04em",
+              lineHeight: 1.2,
+              marginBottom: "0.5rem",
+            }}
+          >
             {project.name}
           </h1>
-          <p className="text-[1.1rem] text-[#4b4b53]">
-            Техническое задание • статус:{" "}
-            <span className="font-semibold capitalize">{project.status}</span>
+          <p style={{ fontSize: "1.1rem", color: "#4b4b53" }}>
+            Техническое задание •{" "}
+            <span style={{ fontWeight: 600 }}>{project.template_id?.toUpperCase()}</span>
           </p>
         </div>
       </div>
 
       {/* Brief content */}
       {project.brief_markdown && (
-        <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-8 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
+        <div
+          style={{
+            background: "rgba(255,255,255,0.4)",
+            backdropFilter: "blur(24px)",
+            borderRadius: "1.5rem",
+            padding: "2rem",
+            boxShadow: "0 2px 16px rgba(0,0,0,0.04)",
+          }}
+        >
           <div
             className="prose prose-lg max-w-none
               prose-headings:text-[#1d1d1f] prose-headings:tracking-[-0.02em]
@@ -103,8 +157,7 @@ export default function BriefPage() {
               prose-table:text-sm
               prose-th:text-left prose-th:font-semibold
               prose-td:py-1 prose-th:py-1
-              prose-code:bg-black/5 prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:text-[#1d1d1f] prose-code:before:content-none prose-code:after:content-none
-              prose-hr:border-black/6"
+              prose-code:bg-black/5 prose-code:rounded prose-code:px-1.5 prose-code:py-0.5"
             dangerouslySetInnerHTML={{
               __html: markdownToHtml(project.brief_markdown),
             }}
@@ -112,24 +165,14 @@ export default function BriefPage() {
         </div>
       )}
 
-      {/* Tags summary */}
-      {project.image_tags && project.image_tags.length > 0 && (
-        <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
-          <h3 className="text-lg font-semibold mb-4 tracking-[-0.02em]">
-            Теги изображений
-          </h3>
-          <TagList tags={project.image_tags as ImageTagSet[]} readOnly />
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex justify-center gap-4 pb-8">
+      {/* Action buttons */}
+      <div style={{ display: "flex", justifyContent: "center", gap: "1rem", flexWrap: "wrap", paddingBottom: "0.5rem" }}>
         {project.brief_markdown && (
           <Button
             size="large"
             shape="round"
             icon={<CopyOutlined />}
-            className="!h-14 !px-8 !text-[1.1rem] !bg-white/80 !border-transparent hover:!bg-white"
+            style={{ height: "3.5rem", padding: "0 2rem", fontSize: "1.1rem", background: "rgba(255,255,255,0.8)", border: "none" }}
             onClick={handleCopyMarkdown}
           >
             Скопировать Markdown
@@ -141,7 +184,14 @@ export default function BriefPage() {
             size="large"
             shape="round"
             icon={<DownloadOutlined />}
-            className="!h-14 !px-10 !text-[1.1rem] !bg-[#1d1d1f] !border-[#1d1d1f] !shadow-[0_8px_24px_rgba(29,29,31,0.2)]"
+            style={{
+              height: "3.5rem",
+              padding: "0 2.5rem",
+              fontSize: "1.1rem",
+              background: "#1d1d1f",
+              borderColor: "#1d1d1f",
+              boxShadow: "0 8px 24px rgba(29,29,31,0.2)",
+            }}
             href={pdfUrl}
             target="_blank"
           >
@@ -152,12 +202,85 @@ export default function BriefPage() {
           size="large"
           shape="round"
           icon={<HomeOutlined />}
-          className="!h-14 !px-10 !text-[1.1rem] !bg-white/50 !border-transparent hover:!bg-white"
+          style={{ height: "3.5rem", padding: "0 2.5rem", fontSize: "1.1rem", background: "rgba(255,255,255,0.5)", border: "none" }}
           onClick={() => router.push("/dashboard")}
         >
           К дашборду
         </Button>
       </div>
+
+      {/* Feedback form */}
+      {project.brief_markdown && (
+        <div
+          style={{
+            background: "rgba(255,255,255,0.5)",
+            backdropFilter: "blur(20px)",
+            borderRadius: "1.5rem",
+            padding: "2rem",
+            boxShadow: "0 2px 16px rgba(0,0,0,0.04)",
+            textAlign: "center",
+            maxWidth: "600px",
+            margin: "0 auto",
+            width: "100%",
+          }}
+        >
+          <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#1d1d1f", marginBottom: "0.5rem" }}>
+            Насколько ТЗ совпало с вашим видением?
+          </h3>
+          <p style={{ color: "#4b4b53", marginBottom: "1.25rem", fontSize: "0.95rem" }}>
+            Ваша обратная связь помогает нам улучшить качество генерации
+          </p>
+
+          {feedbackSent ? (
+            <Alert
+              type="success"
+              message={feedbackMessage || "Мы учтём ваши пожелания. Спасибо!"}
+              showIcon
+              style={{ borderRadius: "1rem" }}
+            />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem", alignItems: "center" }}>
+              <Rate
+                value={rating}
+                onChange={setRating}
+                style={{ fontSize: "2rem" }}
+              />
+              <Input.TextArea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Ваш комментарий (необязательно): что понравилось, что исправить..."
+                rows={3}
+                maxLength={1000}
+                showCount
+                style={{
+                  borderRadius: "0.75rem",
+                  fontSize: "0.95rem",
+                  resize: "none",
+                  width: "100%",
+                }}
+              />
+              <Button
+                type="primary"
+                size="large"
+                shape="round"
+                icon={<SendOutlined />}
+                loading={feedbackLoading}
+                onClick={handleSubmitFeedback}
+                style={{
+                  background: "#1d1d1f",
+                  borderColor: "#1d1d1f",
+                  height: "2.75rem",
+                  padding: "0 2rem",
+                }}
+              >
+                Отправить отзыв
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ paddingBottom: "3rem" }} />
     </div>
   );
 }
@@ -166,21 +289,17 @@ export default function BriefPage() {
 
 function markdownToHtml(md: string): string {
   let html = md
-    // Headings
+    .replace(/^#### (.+)$/gm, "<h4>$1</h4>")
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
     .replace(/^## (.+)$/gm, "<h2>$1</h2>")
     .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-    // Bold
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    // Italic (underscores)
     .replace(/(?<!\w)_(.+?)_(?!\w)/g, "<em>$1</em>")
-    // Inline code
     .replace(/`(.+?)`/g, "<code>$1</code>")
-    // Horizontal rule
     .replace(/^---+$/gm, "<hr/>")
-    // Unordered list items
     .replace(/^- (.+)$/gm, "<li>$1</li>")
-    // Table rows (simple)
+    .replace(/^\* (.+)$/gm, "<li>$1</li>")
+    .replace(/^\d+\. (.+)$/gm, "<li>$1</li>")
     .replace(/^\|(.+)\|$/gm, (_, row: string) => {
       if (row.includes("---")) return "";
       const cells = row
@@ -192,16 +311,12 @@ function markdownToHtml(md: string): string {
       );
     });
 
-  // Wrap consecutive <li> in <ul>
   html = html.replace(/((?:<li>.+<\/li>\n?)+)/g, "<ul>$1</ul>");
-
-  // Wrap consecutive <tr> in <table>
   html = html.replace(
     /((?:<tr>.+<\/tr>\n?)+)/g,
-    '<table class="w-full">$1</table>',
+    '<table class="w-full border-collapse mb-4">$1</table>',
   );
 
-  // Paragraphs for remaining lines
   html = html
     .split("\n")
     .map((line) => {

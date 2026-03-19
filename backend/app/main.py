@@ -5,7 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.routes import analyze, brief, history
+from app.routes import analyze, brief, projects, feedback
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -23,7 +24,9 @@ app.add_middleware(
 
 app.include_router(analyze.router)
 app.include_router(brief.router)
-app.include_router(history.router)
+app.include_router(projects.router)
+app.include_router(feedback.router)
+
 
 
 # ── Startup ──────────────────────────────────────────────────────────────────

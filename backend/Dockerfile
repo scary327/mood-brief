@@ -19,7 +19,8 @@ RUN apt-get update && apt-get install -y build-essential libpq-dev && rm -rf /va
 COPY pyproject.toml poetry.lock* ./
 
 # Устанавливаем зависимости (без dev-групп)
-RUN poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
+# Устанавливаем зависимости (пересоздаём lock-файл если pyproject.toml изменился)
+RUN poetry lock --no-update && poetry install --without dev --no-root && rm -rf $POETRY_CACHE_DIR
 
 # ЭТАП 2: Рантайм
 FROM python:3.11-slim AS runner

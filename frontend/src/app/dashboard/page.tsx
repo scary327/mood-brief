@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, Spin, Alert, Empty } from "antd";
+import { Button, Card, Spin, Alert, Empty, Popconfirm, Tooltip, message } from "antd";
 import {
   ArrowLeftOutlined,
   FileTextOutlined,
@@ -10,33 +10,21 @@ import {
   CheckCircleOutlined,
   SyncOutlined,
   PlusOutlined,
+  DeleteOutlined,
+  ClearOutlined,
 } from "@ant-design/icons";
 import { getHistory, type ProjectOut } from "@/lib/api";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const STATUS_CONFIG: Record<
   string,
   { icon: React.ReactNode; color: string; label: string }
 > = {
-  draft: {
-    icon: <FileTextOutlined />,
-    color: "#a1a1aa",
-    label: "Черновик",
-  },
-  analyzing: {
-    icon: <SyncOutlined spin />,
-    color: "#3b82f6",
-    label: "Анализ",
-  },
-  analyzed: {
-    icon: <ClockCircleOutlined />,
-    color: "#f59e0b",
-    label: "Проанализирован",
-  },
-  ready: {
-    icon: <CheckCircleOutlined />,
-    color: "#10b981",
-    label: "Готов",
-  },
+  draft: { icon: <FileTextOutlined />, color: "#a1a1aa", label: "Черновик" },
+  analyzing: { icon: <SyncOutlined spin />, color: "#3b82f6", label: "Анализ" },
+  analyzed: { icon: <ClockCircleOutlined />, color: "#f59e0b", label: "Проанализирован" },
+  ready: { icon: <CheckCircleOutlined />, color: "#10b981", label: "Готов" },
 };
 
 export default function DashboardPage() {
@@ -44,6 +32,8 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<ProjectOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [clearingAll, setClearingAll] = useState(false);
 
   useEffect(() => {
     getHistory()
@@ -51,6 +41,33 @@ export default function DashboardPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleDeleteOne = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // don't navigate to project
+    setDeletingId(id);
+    try {
+      await fetch(`${API_BASE}/api/projects/${id}`, { method: "DELETE" });
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+      message.success("Проект удалён");
+    } catch {
+      message.error("Не удалось удалить проект");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleClearAll = async () => {
+    setClearingAll(true);
+    try {
+      await fetch(`${API_BASE}/api/projects`, { method: "DELETE" });
+      setProjects([]);
+      message.success("История очищена");
+    } catch {
+      message.error("Не удалось очистить историю");
+    } finally {
+      setClearingAll(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -117,57 +134,91 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project) => {
-            const statusCfg =
-              STATUS_CONFIG[project.status] || STATUS_CONFIG.draft;
-            const date = new Date(project.created_at).toLocaleDateString(
-              "ru-RU",
-              {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              },
-            );
+            const statusCfg = STATUS_CONFIG[project.status] || STATUS_CONFIG.draft;
+            const date = new Date(project.created_at).toLocaleDateString("ru-RU", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            });
 
             return (
               <Card
                 key={project.id}
                 hoverable
                 variant="borderless"
-                className="!rounded-3xl !bg-white/30 !shadow-[0_2px_16px_rgba(0,0,0,0.04)] !transition-all !duration-200 hover:!shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:!scale-[1.01]"
+                className="!rounded-3xl !bg-white/30 !shadow-[0_2px_16px_rgba(0,0,0,0.04)] !transition-all !duration-200 hover:!shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:!scale-[1.01] !relative"
                 onClick={() => {
                   if (project.status === "ready") {
                     router.push(`/brief/${project.id}`);
                   }
                 }}
               >
-                {/* Color preview bar */}
-                {project.selected_colors &&
-                  project.selected_colors.length > 0 && (
-                    <div className="flex rounded-xl overflow-hidden h-3 mb-4">
-                      {project.selected_colors.map((c: string, i: number) => (
-                        <div
-                          key={i}
-                          className="flex-1"
-                          style={{ backgroundColor: c }}
-                        />
-                      ))}
-                    </div>
-                  )}
+                {/* Delete button */}
+                <Popconfirm
+                  title="Удалить проект?"
+                  description="Это действие необратимо."
+                  okText="Удалить"
+                  cancelText="Отмена"
+                  okButtonProps={{ danger: true }}
+                  onConfirm={(e) => handleDeleteOne(project.id, e as React.MouseEvent)}
+                  onPopupClick={(e) => e.stopPropagation()}
+                >
+                  <Tooltip title="Удалить проект">
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: "absolute",
+                        top: "0.75rem",
+                        right: "0.75rem",
+                        background: "rgba(0,0,0,0.04)",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "2rem",
+                        height: "2rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        color: "#a1a1aa",
+                        transition: "all 0.15s",
+                        zIndex: 10,
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = "#fee2e2";
+                        (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,0,0,0.04)";
+                        (e.currentTarget as HTMLButtonElement).style.color = "#a1a1aa";
+                      }}
+                    >
+                      {deletingId === project.id ? (
+                        <SyncOutlined spin style={{ fontSize: "0.8rem" }} />
+                      ) : (
+                        <DeleteOutlined style={{ fontSize: "0.8rem" }} />
+                      )}
+                    </button>
+                  </Tooltip>
+                </Popconfirm>
 
-                <h3 className="text-lg font-semibold mb-1 tracking-[-0.02em]">
+                {/* Color preview bar */}
+                {project.selected_colors && project.selected_colors.length > 0 && (
+                  <div className="flex rounded-xl overflow-hidden h-3 mb-4">
+                    {project.selected_colors.map((c: string, i: number) => (
+                      <div key={i} className="flex-1" style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
+                )}
+
+                <h3 className="text-lg font-semibold mb-1 tracking-[-0.02em] pr-8">
                   {project.name}
                 </h3>
 
                 <p className="text-sm text-[#4b4b53]/50 mb-3">{date}</p>
 
                 <div className="flex items-center gap-2">
-                  <span style={{ color: statusCfg.color }}>
-                    {statusCfg.icon}
-                  </span>
-                  <span
-                    className="text-sm font-medium"
-                    style={{ color: statusCfg.color }}
-                  >
+                  <span style={{ color: statusCfg.color }}>{statusCfg.icon}</span>
+                  <span className="text-sm font-medium" style={{ color: statusCfg.color }}>
                     {statusCfg.label}
                   </span>
                 </div>
@@ -183,9 +234,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* New project button */}
+      {/* Bottom action buttons */}
       {projects.length > 0 && (
-        <div className="text-center pb-4">
+        <div className="flex justify-center gap-3 pb-4 flex-wrap">
           <Button
             size="large"
             shape="round"
@@ -195,6 +246,24 @@ export default function DashboardPage() {
           >
             Новый проект
           </Button>
+          <Popconfirm
+            title="Очистить всю историю?"
+            description="Все проекты и ТЗ будут удалены безвозвратно."
+            okText="Очистить"
+            cancelText="Отмена"
+            okButtonProps={{ danger: true }}
+            onConfirm={handleClearAll}
+          >
+            <Button
+              size="large"
+              shape="round"
+              icon={<ClearOutlined />}
+              loading={clearingAll}
+              className="!h-14 !px-8 !text-[1.1rem] !border-rose-200 !text-rose-400 !bg-rose-50/50"
+            >
+              Очистить историю
+            </Button>
+          </Popconfirm>
         </div>
       )}
     </div>

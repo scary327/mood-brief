@@ -48,6 +48,8 @@ export default function EditorPage() {
 
   const [aiInstruction, setAiInstruction] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [justUpdated, setJustUpdated] = useState(false);
 
   const [mode, setMode] = useState<Mode>("split");
 
@@ -106,20 +108,28 @@ export default function EditorPage() {
       return;
     }
     setAiLoading(true);
+    setAiError(null);
     try {
       const res = await fetch(`${API_BASE}/api/refine-brief`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: id, instruction: aiInstruction }),
+        body: JSON.stringify({
+          project_id: id,
+          instruction: aiInstruction,
+          current_markdown: markdown, // send live editor state
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Ошибка AI");
+      if (!res.ok) throw new Error(data.detail || `Ошибка ${res.status}`);
       setMarkdown(data.brief_markdown);
-      setDirty(false);
+      setDirty(true); // mark dirty so user saves to DB
       setAiInstruction("");
-      message.success("ТЗ обновлено AI");
+      setJustUpdated(true);
+      setTimeout(() => setJustUpdated(false), 1800);
+      message.success("ТЗ обновлено AI — не забудьте сохранить!");
     } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : "Ошибка AI");
+      const msg = e instanceof Error ? e.message : "Неизвестная ошибка";
+      setAiError(msg);
     } finally {
       setAiLoading(false);
     }
@@ -310,6 +320,8 @@ export default function EditorPage() {
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
+              transition: "background 0.4s",
+              background: justUpdated ? "#f0fdf4" : undefined,
             }}
           >
             <div
@@ -352,8 +364,8 @@ export default function EditorPage() {
       <div
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: "0.75rem",
+          flexDirection: "column",
+          gap: "0.5rem",
           padding: "0.75rem 1.25rem",
           background: "rgba(255,255,255,0.9)",
           backdropFilter: "blur(20px)",
@@ -361,32 +373,55 @@ export default function EditorPage() {
           flexShrink: 0,
         }}
       >
-        <RobotOutlined style={{ fontSize: "1.1rem", color: "#7d7d85", flexShrink: 0 }} />
-        <Input
-          value={aiInstruction}
-          onChange={(e) => setAiInstruction(e.target.value)}
-          placeholder='Инструкция для AI: "Добавь раздел о мобильной версии", "Сделай раздел 4.2 подробнее"…'
-          onPressEnter={handleAiRefine}
-          style={{ flex: 1, borderRadius: "0.75rem", height: "2.5rem" }}
-          disabled={aiLoading}
-        />
-        <Tooltip title="Применить к ТЗ через AI (Ctrl+Enter)">
-          <Button
-            type="primary"
-            icon={aiLoading ? <ReloadOutlined spin /> : <SendOutlined />}
-            loading={aiLoading}
-            onClick={handleAiRefine}
-            style={{
-              background: "#1d1d1f",
-              borderColor: "#1d1d1f",
-              height: "2.5rem",
-              padding: "0 1.25rem",
-              borderRadius: "0.75rem",
+        {aiError && (
+          <Alert
+            type="error"
+            message={aiError}
+            closable
+            onClose={() => setAiError(null)}
+            style={{ borderRadius: "0.5rem", fontSize: "0.85rem" }}
+          />
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <RobotOutlined style={{ fontSize: "1.1rem", color: "#7d7d85", flexShrink: 0 }} />
+          <Input.TextArea
+            value={aiInstruction}
+            onChange={(e) => setAiInstruction(e.target.value)}
+            placeholder='Инструкция: "Добавь раздел 5 подробнее", "Смени тон на более формальный"...'
+            onPressEnter={(e) => {
+              if (!e.shiftKey) {
+                e.preventDefault();
+                handleAiRefine();
+              }
             }}
-          >
-            {aiLoading ? "Обрабатываю…" : "Применить"}
-          </Button>
-        </Tooltip>
+            autoSize={{ minRows: 1, maxRows: 6 }}
+            style={{
+              flex: 1,
+              borderRadius: "0.75rem",
+              paddingTop: "0.5rem",
+              paddingBottom: "0.5rem",
+              fontSize: "0.9rem",
+            }}
+            disabled={aiLoading}
+          />
+          <Tooltip title="Применить к ТЗ через AI">
+            <Button
+              type="primary"
+              icon={aiLoading ? <ReloadOutlined spin /> : <SendOutlined />}
+              loading={aiLoading}
+              onClick={handleAiRefine}
+              style={{
+                background: "#1d1d1f",
+                borderColor: "#1d1d1f",
+                height: "2.5rem",
+                padding: "0 1.25rem",
+                borderRadius: "0.75rem",
+              }}
+            >
+              {aiLoading ? "Обрабатываю…" : "Применить"}
+            </Button>
+          </Tooltip>
+        </div>
       </div>
     </div>
   );

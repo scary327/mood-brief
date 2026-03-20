@@ -108,6 +108,7 @@ def save_markdown(
 class RefineBriefRequest(BaseModel):
     project_id: str
     instruction: str
+    current_markdown: str | None = None  # if provided, use editor state instead of DB
 
 
 class RefineBriefResponse(BaseModel):
@@ -126,8 +127,13 @@ async def refine_brief(body: RefineBriefRequest, db: Session = Depends(get_db)):
     if not body.instruction.strip():
         raise HTTPException(status_code=422, detail="Instruction cannot be empty")
 
+    # Prefer the live editor markdown if the frontend sent it
+    source_markdown = body.current_markdown or project.brief_markdown
+    if not source_markdown:
+        raise HTTPException(status_code=400, detail="No brief to refine")
+
     updated_markdown = await refine_brief_via_ai(
-        current_markdown=project.brief_markdown,
+        current_markdown=source_markdown,
         instruction=body.instruction,
     )
 

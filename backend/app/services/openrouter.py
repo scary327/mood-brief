@@ -11,22 +11,48 @@ from app.schemas import ImageTagSet
 
 logger = logging.getLogger(__name__)
 
-VISION_PROMPT = """Role: Ты — экспертный арт-директор и системный аналитик в дизайне.
-Task: Твоя задача — провести глубокую деконструкцию загруженного изображения и превратить его в массив технических тегов для формирования ТЗ.
+VISION_PROMPT = """\
+Ты — эксперт по веб-дизайну и UI/UX. Твоя задача — проанализировать переданное изображение \
+(скриншот сайта, веб-приложения, мобильного приложения или мудборда) и выдать структурированные \
+теги для дальнейшего описания в техническом задании.
 
-Output Format (JSON strictly):
+ПРАВИЛА:
+1. Анализируй ТОЛЬКО визуальные характеристики конкретного UI на изображении.
+2. ЗАПРЕЩЕНО использовать термины из истории искусств: «постмодернизм», «футуризм», «конструктивизм», \
+«баухаус», «эпоха», «рубеж веков» и т.п. Вместо этого используй прикладные UI-термины.
+3. Цвета — только HEX-коды (взятые непосредственно с изображения).
+4. Для style описывай конкретный UI-паттерн: например "dark mode", "neomorphism", "glassmorphism", \
+"flat design", "brutalism", "retro terminal", "cyberpunk neon", "minimalism", "material design" и т.д.
+5. Будь точным и конкретным — не обобщай сверх меры.
+6. Максимум 8 элементов в каждом массиве.
+
+ФОРМАТ ОТВЕТА (строго JSON, без markdown-обёртки):
 {
-  "style": ["название стиля", "эпоха", "настроение"],
-  "color_palette": ["hex-коды", "соотношение цветов", "тип гармонии"],
-  "typography": ["тип шрифта: гротеск/антиква", "характер начертания", "иерархия"],
-  "composition": ["сетка", "баланс", "фокусные точки", "использование негативного пространства"],
-  "ui_elements": ["формы кнопок", "радиусы скругления", "стиль иконок", "типы теней/градиентов"],
-  "visual_hooks": ["необычные графические приемы", "текстуры", "эффекты"]
+  "style": ["UI-стиль (dark mode / neon / cyberpunk / glassmorphism / neumorphism и т.п.)",
+            "общее настроение (агрессивный / спокойный / технологичный / премиальный / игривый)",
+            "плотность интерфейса (dense / airy / balanced)"],
+  "color_palette": ["#hex доминирующий фон", "#hex основной акцент", "#hex вторичный акцент",
+                    "тип схемы: монохромная / комплементарная / аналоговая / триадная"],
+  "typography": ["засечки/гротеск/моноширинный/рукописный", "вес: light/regular/bold/black",
+                 "стиль: строгий/динамичный/геометрический/органичный",
+                 "размер заголовков: крупные/средние/мелкие"],
+  "composition": ["вёрстка: одноколоночная/многоколоночная/асимметричная/карточная/полноэкранная",
+                  "количество колонок (если применимо)",
+                  "баланс: симметричный/асимметричный",
+                  "использование пространства: плотное/воздушное/с выраженными отступами"],
+  "ui_elements": ["стиль кнопок: скруглённые/прямоугольные/pill-shape/ghost/outlined/solid",
+                  "карточки: с тенями/без/с границей/glassmorphism",
+                  "иконки: outline/filled/монохромные/цветные",
+                  "поля ввода: understated/bordered/filled/floating-label",
+                  "навигация: topbar/sidebar/hamburger/tabs/breadcrumbs"],
+  "visual_hooks": ["свечение/neon glow", "градиенты (описать направление и цвета)",
+                   "анимации (если видны)", "текстуры/шум/зернистость",
+                   "нестандартные UI-приёмы (параллакс, reveal, hover-эффекты)",
+                   "уникальные декоративные элементы"]
 }
 
-Constraint: Будь максимально специфичным. Максимум 10 элементов в каждом списке. Не повторяйся. Если видишь много похожих цветов, объедини их в один.
-      
-IMPORTANT: Верни ТОЛЬКО чистый объект JSON — без markdown блоков (```json ... ```), без вводного текста и комментариев. Твой ответ должен начинаться с { и заканчиваться на }. """
+ВАЖНО: Верни ТОЛЬКО чистый JSON-объект. Твой ответ должен начинаться с { и заканчиваться на }.\
+"""
 
 
 async def deconstruct_image_to_tags(image_bytes: bytes, filename: str = "") -> ImageTagSet:
@@ -56,8 +82,8 @@ async def deconstruct_image_to_tags(image_bytes: bytes, filename: str = "") -> I
                 ],
             }
         ],
-        "max_tokens": 2048,
-        "temperature": 0.1,
+        "max_tokens": 1500,
+        "temperature": 0.05,
     }
 
 
@@ -72,34 +98,77 @@ async def deconstruct_image_to_tags(image_bytes: bytes, filename: str = "") -> I
         "X-Title": settings.OPENROUTER_TITLE,
     }
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         try:
             resp = await client.post(
                 f"{settings.OPENROUTER_BASE_URL}/chat/completions",
                 json=payload,
                 headers=headers,
             )
-            if resp.status_code == 403:
-                error_data = resp.json().get("error", {})
-                error_msg = error_data.get("message", "OpenRouter API key or Referer rejected")
-                logger.error("OpenRouter 403 Forbidden: %s", error_msg)
-                raise HTTPException(status_code=403, detail=f"OpenRouter: {error_msg}")
+            if not resp.is_success:
+                # Extract the actual error from OpenRouter's JSON if possible
+                try:
+                    err_body = resp.json()
+                    err_detail = (
+                        err_body.get("error", {}).get("message")
+                        or err_body.get("message")
+                        or resp.text[:400]
+                    )
+                except Exception:
+                    err_detail = resp.text[:400] or f"HTTP {resp.status_code}"
 
-            
-            resp.raise_for_status()
+                logger.error("Vision API error %s: %s", resp.status_code, err_detail)
+
+                if resp.status_code == 400:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"Модель '{settings.OPENROUTER_MODEL}' отклонила запрос с изображением. "
+                            f"Скорее всего, она не поддерживает Vision/изображения. "
+                            f"Укажите в OPENROUTER_MODEL vision-модель (например openai/gpt-4o-mini). "
+                            f"Детали: {err_detail}"
+                        ),
+                    )
+                if resp.status_code == 413:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="Изображение слишком большое. Уменьшите его до 4 МБ или меньше.",
+                    )
+                raise HTTPException(
+                    status_code=resp.status_code,
+                    detail=f"OpenRouter error {resp.status_code}: {err_detail}",
+                )
             data = resp.json()
         except HTTPException:
-            # Re-raise FastAPIs HTTPException as-is
             raise
+        except httpx.ConnectError as e:
+            logger.error("Vision ConnectError (likely model does not support images): %r", e)
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    f"Не удалось подключиться к провайдеру для модели '{settings.OPENROUTER_MODEL}'. "
+                    "Возможные причины: модель не поддерживает изображения, либо проблема с сетью. "
+                    "Попробуйте сменить OPENROUTER_MODEL на vision-модель, например: openai/gpt-4o-mini"
+                ),
+            )
         except httpx.HTTPStatusError as e:
             logger.error("OpenRouter API error: %s", e.response.text)
-            raise HTTPException(status_code=e.response.status_code, detail=f"OpenRouter error: {e.response.text}")
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=f"OpenRouter error: {e.response.text[:400]}",
+            )
         except httpx.ConnectTimeout:
-            logger.error("Timeout connecting to OpenRouter")
-            raise HTTPException(status_code=504, detail="OpenRouter connection timed out")
+            logger.error("Timeout connecting to OpenRouter Vision API")
+            raise HTTPException(
+                status_code=504,
+                detail="Превышено время ожидания ответа от Vision API. Попробуйте уменьшить размер изображения.",
+            )
         except Exception as e:
-            logger.exception("Connection error to OpenRouter: %r", e)
-            raise HTTPException(status_code=500, detail=f"Failed to connect to OpenRouter: {type(e).__name__}")
+            logger.exception("Unexpected error for Vision API: %r", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Ошибка Vision API: {type(e).__name__}: {str(e)[:200]}",
+            )
 
 
 

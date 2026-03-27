@@ -58,3 +58,44 @@ docker-compose ps
 | Frontend    | http://localhost:3000      |
 | Backend API | http://localhost:8000      |
 | Swagger UI  | http://localhost:8000/docs |
+
+---
+
+## Авторизация и базовый фасет
+
+### ⚙️ Конфигурация
+
+Перед запуском приложения скопируйте `.env.example` файлы и отредактируйте их:
+
+```bash
+# Backend
+cp backend/.env.example backend/.env
+
+# Frontend
+cp frontend/.env.example frontend/.env.local
+```
+
+**Важные переменные:**
+
+- `backend/.env`: DATABASE_URL, SECRET_KEY, OPENROUTER_API_KEY
+- `frontend/.env.local`: NEXT_PUBLIC_API_URL (должен указывать на backend)
+
+### 🔐 Использование авторизации
+
+1. **Регистрация**: `/auth/register` - email, username, password (≥8 символов, буквы + цифры)
+2. **Логин**: `/auth/login` - email, password
+3. **Защищенные маршруты**: `/dashboard`, `/moodboard` требуют авторизации
+4. **Выход**: кнопка "Выйти" в Header
+5. **Refresh токены**: автоматический если session истекла (Ctrl+R)
+
+#### Тестовые учетные данные (для разработки)
+
+```
+Email: test@example.com
+Username: testuser
+Password: TestPass123
+```
+
+### 📚 Документация
+
+Полное руководство по авторизации см. в [QUICKSTART_AUTH.md](./QUICKSTART_AUTH.md)

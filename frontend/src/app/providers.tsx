@@ -1,6 +1,30 @@
 "use client";
 
-import { ConfigProvider } from "antd";
+import { useEffect, useState } from "react";
+import { ConfigProvider, Spin } from "antd";
+import { useAuthStore } from "@/store/authStore";
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const initializeAuth = useAuthStore((s) => s.initializeAuth);
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    initializeAuth().finally(() => {
+      setInitialized(true);
+    });
+  }, [initializeAuth]);
+
+  if (!initialized) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <Spin size="large" />
+        <p className="text-[#4b4b53]/60 ml-4">Инициализация...</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 export function AntdConfigProvider({
   children,

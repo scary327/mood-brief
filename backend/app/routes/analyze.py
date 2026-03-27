@@ -7,9 +7,10 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Project
+from app.models import Project, User
 from app.schemas import AnalyzeImagesResponse, ImageTagSet
 from app.services.openrouter import deconstruct_image_to_tags
+from app.security import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["analyze"])
@@ -23,6 +24,7 @@ async def analyze_images(
     files: list[UploadFile] = File(...),
     project_name: str = Form("Untitled Project"),
     description: str = Form(""),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Upload images → run AI Vision analysis → return structured tags."""
@@ -38,11 +40,12 @@ async def analyze_images(
                 detail=f"Unsupported file type: {f.content_type}. Allowed: {ALLOWED_TYPES}",
             )
 
-    # Create project
+    # Create project for current user
     project = Project(
         name=project_name,
         description=description,
         status="analyzing",
+        user_id=current_user.id,
     )
     db.add(project)
     db.commit()

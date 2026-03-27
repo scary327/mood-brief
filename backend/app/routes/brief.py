@@ -1,13 +1,14 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Project
+from app.models import Project, User
 from app.schemas import GenerateBriefRequest, GenerateBriefResponse, ImageTagSet
+from app.security import get_current_user
 from app.services.brief_generator import (
     GENERATED_DIR,
     generate_brief_via_ai,
@@ -20,11 +21,22 @@ router = APIRouter(prefix="/api", tags=["brief"])
 
 
 @router.post("/generate-brief", response_model=GenerateBriefResponse)
-async def generate_brief(body: GenerateBriefRequest, db: Session = Depends(get_db)):
+async def generate_brief(
+    body: GenerateBriefRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Generate Markdown + PDF brief from confirmed tags."""
     project = db.query(Project).filter(Project.id == body.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Check ownership
+    if project.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this project",
+        )
 
     project.template_id = body.template_id
     project.selected_fonts = body.selected_fonts
@@ -61,11 +73,22 @@ async def generate_brief(body: GenerateBriefRequest, db: Session = Depends(get_d
 
 
 @router.get("/brief/{project_id}/pdf")
-def download_pdf(project_id: str, db: Session = Depends(get_db)):
+def download_pdf(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Download the generated PDF for a project."""
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not project.pdf_filename:
         raise HTTPException(status_code=404, detail="PDF not found")
+
+    # Check ownership
+    if project.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this project",
+        )
 
     filepath = GENERATED_DIR / project.pdf_filename
     if not filepath.exists():
@@ -88,12 +111,20 @@ class SaveMarkdownRequest(BaseModel):
 def save_markdown(
     project_id: str,
     body: SaveMarkdownRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Save manually-edited markdown and regenerate the PDF."""
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    # Check ownership
+    if project.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this project",
+        )
 
     pdf_filename = generate_brief_pdf(body.markdown, project_name=project.name)
     project.brief_markdown = body.markdown
@@ -117,11 +148,23 @@ class RefineBriefResponse(BaseModel):
 
 
 @router.post("/refine-brief", response_model=RefineBriefResponse)
-async def refine_brief(body: RefineBriefRequest, db: Session = Depends(get_db)):
+async def refine_brief(
+    body: RefineBriefRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Apply a user instruction to the existing brief via AI, save and return."""
     project = db.query(Project).filter(Project.id == body.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Check ownership
+    if project.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this project",
+        )
+
     if not project.brief_markdown:
         raise HTTPException(status_code=400, detail="No brief to refine")
     if not body.instruction.strip():

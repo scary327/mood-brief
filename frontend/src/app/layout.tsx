@@ -1,6 +1,6 @@
 import "./globals.css";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
-import { AntdConfigProvider } from "./providers";
+import { AntdConfigProvider, AuthProvider } from "./providers";
 
 export default function RootLayout({
   children,
@@ -11,7 +11,11 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AntdRegistry>
-          <AntdConfigProvider>{children}</AntdConfigProvider>
+          <AntdConfigProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </AntdConfigProvider>
         </AntdRegistry>
       </body>
     </html>

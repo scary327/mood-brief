@@ -4,7 +4,41 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
+
+
+# ── User / Auth ──────────────────────────────────────────────────────────────
+
+
+class UserRegister(BaseModel):
+    """Schema for user registration."""
+    email: EmailStr
+    username: str
+    password: str
+
+
+class UserLogin(BaseModel):
+    """Schema for user login."""
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """Schema for login/register response with tokens."""
+    access_token: str
+    token_type: str = "bearer"
+    refresh_token: Optional[str] = None
+
+
+class UserOut(BaseModel):
+    """Schema for user output (without password)."""
+    id: uuid.UUID
+    email: str
+    username: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # ── Image analysis ────────────────────────────────────────────────────────────
@@ -52,9 +86,9 @@ class ProjectOut(BaseModel):
     id: uuid.UUID
     name: str
     description: Optional[str] = ""
-    selected_fonts: list = Field(default_factory=list)
-    selected_colors: list = Field(default_factory=list)
-    image_tags: list = Field(default_factory=list)
+    selected_fonts: Optional[list] = []
+    selected_colors: Optional[list] = []
+    image_tags: Optional[list] = []
     brief_markdown: Optional[str] = ""
     pdf_filename: Optional[str] = ""
     status: str = "draft"
@@ -63,3 +97,4 @@ class ProjectOut(BaseModel):
 
     class Config:
         from_attributes = True
+

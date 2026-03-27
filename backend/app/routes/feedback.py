@@ -1,12 +1,13 @@
 import logging
 import re
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Feedback, Project
+from app.models import Feedback, Project, User
+from app.security import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["feedback"])
@@ -53,7 +54,11 @@ class FeedbackResponse(BaseModel):
 
 
 @router.post("/feedback", response_model=FeedbackResponse)
-def submit_feedback(body: FeedbackCreate, db: Session = Depends(get_db)):
+def submit_feedback(
+    body: FeedbackCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Submit user feedback (rating + comment) for a generated brief."""
     if body.rating < 1 or body.rating > 5:
         raise HTTPException(status_code=422, detail="Rating must be between 1 and 5")
@@ -61,6 +66,13 @@ def submit_feedback(body: FeedbackCreate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == body.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    # Check ownership - only project owner can submit feedback
+    if project.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to submit feedback for this project",
+        )
 
     # Moderation: save but mark as not published if spammy
     is_published = not _is_spam(body.comment)

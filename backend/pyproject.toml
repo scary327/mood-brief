@@ -15,6 +15,9 @@ python-multipart = ">=0.0.20,<0.0.23"
 httpx = ">=0.28.0,<1.0.0"
 fpdf2 = ">=2.8.0,<3.0.0"
 pdfminer-six = ">=20231228"
+python-jose = {version = ">=3.3.0,<4.0.0", extras = ["cryptography"]}
+passlib = {version = ">=1.7.4,<2.0.0", extras = ["argon2"]}
+email-validator = ">=2.0.0,<3.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

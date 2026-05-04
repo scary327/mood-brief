@@ -11,7 +11,7 @@ import {
   SendOutlined,
   EditOutlined,
 } from "@ant-design/icons";
-import { getProject, getBriefPdfUrl, type ProjectOut } from "@/lib/api";
+import { getProject, downloadBriefPdf, type ProjectOut } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -36,6 +36,7 @@ export default function BriefPage() {
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -49,6 +50,18 @@ export default function BriefPage() {
     if (project?.brief_markdown) {
       navigator.clipboard.writeText(project.brief_markdown);
       message.success("Markdown скопирован в буфер обмена");
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!project?.pdf_filename) return;
+    setDownloadingPdf(true);
+    try {
+      await downloadBriefPdf(id, project.pdf_filename);
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : "Не удалось скачать PDF");
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 
@@ -94,7 +107,7 @@ export default function BriefPage() {
     );
   }
 
-  const pdfUrl = project.pdf_filename ? getBriefPdfUrl(id) : null;
+  const hasPdf = Boolean(project.pdf_filename);
   const templateLabel = TEMPLATE_LABELS[project.template_id] || project.template_id;
 
   return (
@@ -188,15 +201,15 @@ export default function BriefPage() {
             </Button>
           </>
         )}
-        {pdfUrl && (
+        {hasPdf && (
           <Button
             type="primary"
             size="large"
             shape="round"
             icon={<DownloadOutlined />}
+            loading={downloadingPdf}
             style={{ height: "3.25rem", padding: "0 2rem", fontSize: "1rem", background: "#1d1d1f", borderColor: "#1d1d1f", boxShadow: "0 8px 24px rgba(29,29,31,0.2)" }}
-            href={pdfUrl}
-            target="_blank"
+            onClick={handleDownloadPdf}
           >
             Скачать PDF
           </Button>

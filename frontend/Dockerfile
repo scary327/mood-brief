@@ -12,6 +12,11 @@ RUN npm ci
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# NEXT_PUBLIC_* must be present at build time — Next bakes them into the
+# client bundle. Pass via docker-compose build.args.
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 # Копируем установленные node_modules из первого этапа
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

@@ -2,7 +2,10 @@ import { useAuthStore } from "@/store/authStore";
 
 export const getApiBase = () => {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!envUrl) return "http://localhost:8000";
+  // Empty string explicitly = same-origin (nginx setup). Relative URLs let
+  // the browser send the request to whatever host serves the page, so cookies
+  // and CORS Just Work.
+  if (envUrl === undefined) return "http://localhost:8000";
   return envUrl.replace(/\/$/, "");
 };
 
@@ -201,4 +204,54 @@ export async function getHistory(): Promise<ProjectOut[]> {
 
 export function getBriefPdfUrl(projectId: string): string {
   return `${API_BASE}/api/brief/${projectId}/pdf`;
+}
+
+/**
+ * Download the project's PDF using the authenticated fetch wrapper,
+ * then trigger a browser download from a Blob URL.
+ *
+ * Plain `<a href>` links cannot attach the Bearer token, which is why
+ * the unauthenticated download endpoint returns 401.
+ */
+export async function downloadBriefPdf(
+  projectId: string,
+  suggestedFilename?: string,
+): Promise<void> {
+  const res = await apiFetch(`/api/brief/${projectId}/pdf`);
+  if (!res.ok) {
+    let detail = `Не удалось скачать PDF (${res.status})`;
+    try {
+      const err = await res.json();
+      if (err?.detail) detail = err.detail;
+    } catch {
+      // ignore
+    }
+    throw new Error(detail);
+  }
+
+  const blob = await res.blob();
+
+  let filename = suggestedFilename?.trim() || `brief-${projectId}.pdf`;
+  const cd = res.headers.get("content-disposition");
+  if (cd) {
+    const star = cd.match(/filename\*\s*=\s*(?:UTF-8'')?["']?([^"';]+)["']?/i);
+    const plain = cd.match(/filename\s*=\s*["']?([^"';]+)["']?/i);
+    const raw = star?.[1] || plain?.[1];
+    if (raw) {
+      try {
+        filename = decodeURIComponent(raw);
+      } catch {
+        filename = raw;
+      }
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }

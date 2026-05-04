@@ -2,14 +2,6 @@
 
 import { create } from "zustand";
 
-const getApiBase = () => {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!envUrl) return "http://localhost:8000";
-  return envUrl.replace(/\/$/, "");
-};
-
-const API_BASE = getApiBase();
-
 export interface User {
   id: string;
   email: string;
@@ -54,7 +46,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   // Refresh token using refresh cookie
   refreshToken: async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/refresh-token`, {
+      // Same-origin: hits the Next route handler at /api/auth/refresh-token,
+      // which reads the httpOnly refresh cookie set by the login Server Action
+      // and forwards it server-to-server to the backend. Browser can't send
+      // the cookie directly to the backend domain (different host).
+      const res = await fetch(`/api/auth/refresh-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include", // Automatically sends refresh_token cookie
@@ -87,7 +83,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   initializeAuth: async () => {
     try {
       // Try to refresh token using cookie
-      const res = await fetch(`${API_BASE}/api/auth/refresh-token`, {
+      // Same-origin: hits the Next route handler at /api/auth/refresh-token,
+      // which reads the httpOnly refresh cookie set by the login Server Action
+      // and forwards it server-to-server to the backend. Browser can't send
+      // the cookie directly to the backend domain (different host).
+      const res = await fetch(`/api/auth/refresh-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

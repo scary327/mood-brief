@@ -2,10 +2,8 @@ import base64
 import json
 import logging
 
-import httpx
-from fastapi import HTTPException
-
 from app.config import settings
+from app.services.openrouter_client import chat_completion_with_fallback
 
 from app.schemas import ImageTagSet
 
@@ -67,7 +65,6 @@ async def deconstruct_image_to_tags(image_bytes: bytes, filename: str = "") -> I
         mime = "image/webp"
 
     payload = {
-        "model": settings.OPENROUTER_MODEL,
         "messages": [
             {
                 "role": "user",
@@ -86,91 +83,12 @@ async def deconstruct_image_to_tags(image_bytes: bytes, filename: str = "") -> I
         "temperature": 0.05,
     }
 
-
-    if not settings.OPENROUTER_API_KEY:
-        logger.error("OPENROUTER_API_KEY is not set!")
-        # We don't raise here to allow the app to start, but the request will fail
-
-    headers = {
-        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": settings.OPENROUTER_REFERER,
-        "X-Title": settings.OPENROUTER_TITLE,
-    }
-
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        try:
-            resp = await client.post(
-                f"{settings.OPENROUTER_BASE_URL}/chat/completions",
-                json=payload,
-                headers=headers,
-            )
-            if not resp.is_success:
-                # Extract the actual error from OpenRouter's JSON if possible
-                try:
-                    err_body = resp.json()
-                    err_detail = (
-                        err_body.get("error", {}).get("message")
-                        or err_body.get("message")
-                        or resp.text[:400]
-                    )
-                except Exception:
-                    err_detail = resp.text[:400] or f"HTTP {resp.status_code}"
-
-                logger.error("Vision API error %s: %s", resp.status_code, err_detail)
-
-                if resp.status_code == 400:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            f"Модель '{settings.OPENROUTER_MODEL}' отклонила запрос с изображением. "
-                            f"Скорее всего, она не поддерживает Vision/изображения. "
-                            f"Укажите в OPENROUTER_MODEL vision-модель (например openai/gpt-4o-mini). "
-                            f"Детали: {err_detail}"
-                        ),
-                    )
-                if resp.status_code == 413:
-                    raise HTTPException(
-                        status_code=413,
-                        detail="Изображение слишком большое. Уменьшите его до 4 МБ или меньше.",
-                    )
-                raise HTTPException(
-                    status_code=resp.status_code,
-                    detail=f"OpenRouter error {resp.status_code}: {err_detail}",
-                )
-            data = resp.json()
-        except HTTPException:
-            raise
-        except httpx.ConnectError as e:
-            logger.error("Vision ConnectError (likely model does not support images): %r", e)
-            raise HTTPException(
-                status_code=502,
-                detail=(
-                    f"Не удалось подключиться к провайдеру для модели '{settings.OPENROUTER_MODEL}'. "
-                    "Возможные причины: модель не поддерживает изображения, либо проблема с сетью. "
-                    "Попробуйте сменить OPENROUTER_MODEL на vision-модель, например: openai/gpt-4o-mini"
-                ),
-            )
-        except httpx.HTTPStatusError as e:
-            logger.error("OpenRouter API error: %s", e.response.text)
-            raise HTTPException(
-                status_code=e.response.status_code,
-                detail=f"OpenRouter error: {e.response.text[:400]}",
-            )
-        except httpx.ConnectTimeout:
-            logger.error("Timeout connecting to OpenRouter Vision API")
-            raise HTTPException(
-                status_code=504,
-                detail="Превышено время ожидания ответа от Vision API. Попробуйте уменьшить размер изображения.",
-            )
-        except Exception as e:
-            logger.exception("Unexpected error for Vision API: %r", e)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Ошибка Vision API: {type(e).__name__}: {str(e)[:200]}",
-            )
-
-
+    data, used_model = await chat_completion_with_fallback(
+        payload=payload,
+        models=settings.vision_model_chain(),
+        timeout=120.0,
+    )
+    logger.info("Vision tags produced by %s for %s", used_model, filename or "<unnamed>")
 
     raw_text = data["choices"][0]["message"]["content"].strip()
 

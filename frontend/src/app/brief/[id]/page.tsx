@@ -11,9 +11,7 @@ import {
   SendOutlined,
   EditOutlined,
 } from "@ant-design/icons";
-import { getProject, downloadBriefPdf, type ProjectOut } from "@/lib/api";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { apiFetch, getProject, downloadBriefPdf, type ProjectOut } from "@/lib/api";
 
 const TEMPLATE_LABELS: Record<string, string> = {
   gost: "ГОСТ 34.602-2020",
@@ -72,7 +70,7 @@ export default function BriefPage() {
     }
     setFeedbackLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/feedback`, {
+      const res = await apiFetch(`/api/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project_id: id, rating, comment }),

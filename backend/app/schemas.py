@@ -71,6 +71,7 @@ class GenerateBriefRequest(BaseModel):
     selected_fonts: list[str] = Field(default_factory=list)
     selected_colors: list[str] = Field(default_factory=list)
     template_id: str = "standard"
+    project_name: str = ""
 
 
 class GenerateBriefResponse(BaseModel):

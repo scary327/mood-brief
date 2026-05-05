@@ -8,8 +8,10 @@ import {
   LayoutOutlined,
   SmileOutlined,
   AppstoreOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import type { ImageTagSet } from "@/lib/api";
+import "./tag-list.css";
 
 const CATEGORIES: {
   key: keyof ImageTagSet;
@@ -110,20 +112,34 @@ export default function TagList({
                 const hex =
                   cat.key === "color_palette" && hexMatch ? hexMatch[0] : null;
 
+                const onLight = hex ? isLightColor(hex) : true;
                 return (
                   <Tag
-                    key={`${cat.key}-${i}`}
+                    key={`${cat.key}-${item.value}`}
                     color={hex ? undefined : cat.color}
                     closable={!readOnly}
-                    onClose={() =>
-                      onRemove?.(item.tagIdx, cat.key, item.valIdx)
+                    closeIcon={
+                      <CloseOutlined
+                        className="tag-close-icon"
+                        style={
+                          hex
+                            ? { color: onLight ? "#1d1d1f" : "#ffffff" }
+                            : undefined
+                        }
+                      />
                     }
-                    className="!rounded-lg !px-3 !py-0.5 !text-sm !m-0"
+                    onClose={(e) => {
+                      // Не даём AntD выполнить свою «closing» анимацию на чужом узле:
+                      // удаляем элемент через стор, React сам размонтирует тег.
+                      e.preventDefault();
+                      onRemove?.(item.tagIdx, cat.key, item.valIdx);
+                    }}
+                    className="tag-item !rounded-lg !px-3 !py-0.5 !text-sm !m-0"
                     style={
                       hex
                         ? {
                             backgroundColor: hex,
-                            color: isLightColor(hex) ? "#1d1d1f" : "#ffffff",
+                            color: onLight ? "#1d1d1f" : "#ffffff",
                             border: "1px solid rgba(0,0,0,0.08)",
                           }
                         : undefined

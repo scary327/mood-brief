@@ -169,6 +169,7 @@ export async function generateBrief(
   userNotes: string,
   selectedFonts: string[],
   selectedColors: string[],
+  projectName: string = "",
 ): Promise<GenerateBriefResponse> {
   const res = await apiFetch("/api/generate-brief", {
     method: "POST",
@@ -180,6 +181,7 @@ export async function generateBrief(
       user_notes: userNotes,
       selected_fonts: selectedFonts,
       selected_colors: selectedColors,
+      project_name: projectName,
     }),
   });
 

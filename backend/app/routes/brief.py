@@ -43,6 +43,11 @@ async def generate_brief(
     project.selected_colors = body.selected_colors
     project.image_tags = [t.model_dump() for t in body.confirmed_tags]
 
+    # Allow updating the project name at generation time — user may have edited
+    # it after analyze (analyze creates the row with whatever name was set then).
+    if body.project_name and body.project_name.strip():
+        project.name = body.project_name.strip()
+
     if body.user_notes:
         project.description = body.user_notes
 

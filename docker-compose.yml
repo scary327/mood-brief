@@ -49,6 +49,10 @@ services:
       # network directly.
       API_URL: ${API_URL:-http://backend:8000}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL-}
+      # Next 16 standalone biнds to $HOSTNAME, which Docker auto-sets to the
+      # container ID — that interface isn't reachable from other containers.
+      # Force binding to all interfaces so nginx can proxy in.
+      HOSTNAME: 0.0.0.0
     depends_on:
       - backend
 

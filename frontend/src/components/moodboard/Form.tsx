@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Button,
   Input,
@@ -11,6 +11,7 @@ import {
   Alert,
   Divider,
   Select,
+  message,
 } from "antd";
 
 import {
@@ -131,6 +132,48 @@ export default function MoodBoardForm() {
     [setUploadedFiles],
   );
 
+  // Вставка картинок из буфера обмена (Ctrl+V в любом месте формы).
+  // Игнорируем paste, если фокус в текстовом поле — там ожидается текст.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || target?.isContentEditable) return;
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const imgs: File[] = [];
+      for (const item of items) {
+        if (item.kind === "file" && item.type.startsWith("image/")) {
+          const blob = item.getAsFile();
+          if (blob) {
+            const ext = blob.type.split("/")[1] || "png";
+            const file = new File(
+              [blob],
+              `pasted-${Date.now()}-${imgs.length}.${ext}`,
+              { type: blob.type },
+            );
+            imgs.push(file);
+          }
+        }
+      }
+      if (imgs.length === 0) return;
+
+      e.preventDefault();
+      const merged = [...uploadedFiles, ...imgs];
+      handleFilesChange(merged);
+      message.success(
+        imgs.length === 1
+          ? "Изображение вставлено из буфера"
+          : `Вставлено изображений: ${imgs.length}`,
+      );
+    };
+
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [uploadedFiles, handleFilesChange]);
+
   const handleAnalyze = async () => {
     await uploadAndAnalyze();
   };
@@ -219,7 +262,7 @@ export default function MoodBoardForm() {
             <InboxOutlined />
           </p>
           <p className="text-base text-[#4b4b53]/70">
-            Перетащите изображения сюда или нажмите для выбора
+            Перетащите изображения сюда, нажмите для выбора или вставьте из буфера (Ctrl+V)
           </p>
           <p className="text-sm text-[#4b4b53]/40 mt-1">
             JPG, PNG, WebP • до 10 МБ каждый
@@ -258,7 +301,6 @@ export default function MoodBoardForm() {
               icon={isAnalyzing ? <LoadingOutlined /> : undefined}
               className="!h-12 !px-10 !text-base !bg-[#1d1d1f] !border-[#1d1d1f] !shadow-[0_8px_24px_rgba(29,29,31,0.2)]"
               onClick={handleAnalyze}
-              disabled={!projectName.trim()}
             >
               {isAnalyzing
                 ? "AI анализирует изображения..."
@@ -460,10 +502,31 @@ export default function MoodBoardForm() {
           value={templateId}
           onChange={setTemplateId}
           options={[
-            { value: "standard", label: "Стандартное ТЗ (IT-стиль)" },
-            { value: "gost", label: "ГОСТ 34.602-2020 (Техническое задание)" },
-            { value: "creative", label: "Креативный бриф" },
-
+            {
+              label: "Цифровой продукт",
+              options: [
+                { value: "standard", label: "Стандартное ТЗ (IT-стиль)" },
+                { value: "gost", label: "ГОСТ 34.602-2020 (Техническое задание)" },
+                { value: "creative", label: "Креативный бриф" },
+              ],
+            },
+            {
+              label: "Дизайн и идентичность",
+              options: [
+                { value: "logo", label: "Логотип / фирменный знак" },
+                { value: "branding", label: "Фирменный стиль (брендбук)" },
+                { value: "graphic_design", label: "Графический дизайн / полиграфия" },
+                { value: "presentation", label: "Презентация" },
+                { value: "motion", label: "Видео / motion-дизайн" },
+              ],
+            },
+            {
+              label: "Пространство",
+              options: [
+                { value: "architecture", label: "Архитектурный проект" },
+                { value: "interior", label: "Дизайн интерьера" },
+              ],
+            },
           ]}
         />
       </div>

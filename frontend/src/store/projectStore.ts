@@ -127,7 +127,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   doGenerateBrief: async (userNotes) => {
-    const { projectId, tags, templateId, selectedFonts, selectedColors } = get();
+    const { projectId, projectName, tags, templateId, selectedFonts, selectedColors } = get();
     if (!projectId) return null;
 
     set({ isGenerating: true, error: null });
@@ -139,6 +139,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         userNotes,
         [...selectedFonts],
         [...selectedColors],
+        projectName,
       );
       set({
         briefMarkdown: result.brief_markdown,

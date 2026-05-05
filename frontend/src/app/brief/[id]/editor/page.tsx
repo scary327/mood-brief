@@ -21,9 +21,7 @@ import {
   EditOutlined,
   RobotOutlined,
 } from "@ant-design/icons";
-import { getProject, getBriefPdfUrl, type ProjectOut } from "@/lib/api";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { apiFetch, getProject, getBriefPdfUrl, type ProjectOut } from "@/lib/api";
 
 const TEMPLATE_LABELS: Record<string, string> = {
   gost: "ГОСТ 34.602-2020",
@@ -75,7 +73,7 @@ export default function EditorPage() {
     if (!project) return;
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/api/projects/${id}/markdown`, {
+      const res = await apiFetch(`/api/projects/${id}/markdown`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markdown }),
@@ -110,7 +108,7 @@ export default function EditorPage() {
     setAiLoading(true);
     setAiError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/refine-brief`, {
+      const res = await apiFetch(`/api/refine-brief`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

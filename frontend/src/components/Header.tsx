@@ -31,25 +31,29 @@ export default function AppHeader() {
 
   return (
     <Header
-      className="bg-white border-b border-[#e4e4e7]"
+      className="bg-white border-b border-[#e4e4e7] !px-3 sm:!px-6 !h-14 sm:!h-16"
       style={{
-        padding: "0 24px",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
+        gap: 8,
       }}
     >
-      <h1 className="text-xl font-bold text-[#1d1d1f] m-0">MoodBrief</h1>
+      <h1 className="text-lg sm:text-xl font-bold text-[#1d1d1f] m-0 truncate">
+        MoodBrief
+      </h1>
 
       <Dropdown menu={{ items: menuItems }} placement="bottomRight">
-        <Button type="text" size="large">
-          <Space>
+        <Button type="text" size="large" className="!px-2 sm:!px-3">
+          <Space size={6}>
             <Avatar
-              size={32}
+              size={28}
               icon={<UserOutlined />}
               className="bg-[#3b82f6]"
             />
-            <span className="text-[#1d1d1f] font-medium">{user.username}</span>
+            <span className="text-[#1d1d1f] font-medium hidden sm:inline max-w-[160px] truncate">
+              {user.username}
+            </span>
           </Space>
         </Button>
       </Dropdown>

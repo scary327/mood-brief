@@ -23,21 +23,21 @@ export default function Home() {
       <Layout.Content className="bg-white">
         <div className="container">
           {/* Hero Section */}
-          <section className="text-center mt-10 px-5 py-10">
-            <h1 className="text-[4rem] font-extrabold mb-6 bg-gradient-to-r from-[#1d1d1f] to-[#7d7d85] bg-clip-text text-transparent tracking-[-0.04em] leading-tight">
+          <section className="text-center mt-4 sm:mt-10 px-2 sm:px-5 py-6 sm:py-10">
+            <h1 className="text-[2.5rem] sm:text-5xl md:text-[4rem] font-extrabold mb-4 sm:mb-6 bg-gradient-to-r from-[#1d1d1f] to-[#7d7d85] bg-clip-text text-transparent tracking-[-0.04em] leading-tight">
               MoodBrief
             </h1>
-            <p className="text-[1.4rem] font-medium text-[#4b4b53] max-w-[800px] mx-auto mb-10 leading-relaxed">
+            <p className="text-base sm:text-lg md:text-[1.4rem] font-medium text-[#4b4b53] max-w-[800px] mx-auto mb-6 sm:mb-10 leading-relaxed">
               Сервис оформления визуальных предпочтений клиента в
               структурированное техническое задание
             </p>
-            <Space size="middle">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
               <Button
                 type="primary"
                 size="large"
                 shape="round"
                 icon={<ArrowRightOutlined />}
-                className="!h-14 !px-10 !text-[1.1rem] !bg-[#1d1d1f] !border-[#1d1d1f] !shadow-[0_8px_24px_rgba(29,29,31,0.2)]"
+                className="!h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-[1.1rem] !bg-[#1d1d1f] !border-[#1d1d1f] !shadow-[0_8px_24px_rgba(29,29,31,0.2)] w-full sm:w-auto max-w-xs"
                 onClick={() =>
                   router.push(isAuthenticated ? "/moodboard" : "/auth/login")
                 }
@@ -49,31 +49,31 @@ export default function Home() {
                   size="large"
                   shape="round"
                   icon={<AppstoreAddOutlined />}
-                  className="!h-14 !px-10 !text-[1.1rem] !bg-white/50 !border-transparent"
+                  className="!h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-[1.1rem] !bg-white/50 !border-transparent w-full sm:w-auto max-w-xs"
                   onClick={() => router.push("/dashboard")}
                 >
                   Дашборд
                 </Button>
               )}
-            </Space>
+            </div>
           </section>
 
           <Divider className="!border-black/6" />
 
           {/* Описание сервиса */}
           <section>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12 items-center">
               <div>
-                <h2 className="text-2xl font-bold tracking-[-0.02em] mb-4">
+                <h2 className="text-xl sm:text-2xl font-bold tracking-[-0.02em] mb-4">
                   От визуала к чёткому ТЗ
                 </h2>
-                <p className="text-[1.1rem] text-[#4b4b53] leading-[1.8] mb-4">
+                <p className="text-base sm:text-[1.1rem] text-[#4b4b53] leading-[1.8] mb-4">
                   <b>MoodBrief</b> — это современный веб-сервис, предназначенный
                   для преобразования визуальных предпочтений клиента в строго
                   структурированное техническое задание для дизайн‑ или
                   проектной команды.
                 </p>
-                <p className="text-[1.1rem] text-[#4b4b53] leading-[1.8]">
+                <p className="text-base sm:text-[1.1rem] text-[#4b4b53] leading-[1.8]">
                   Сервис реализует пошаговый процесс: от выбора типа задачи
                   (логотип, сайт, архитектура, благоустройство) и оценки
                   примеров, до автоматического формирования moodboard&apos;а и
@@ -118,11 +118,11 @@ export default function Home() {
           </section>
 
           {/* Ожидаемый эффект */}
-          <section className="pt-10">
-            <h2 className="text-2xl font-bold text-center mb-10">
+          <section className="pt-6 sm:pt-10">
+            <h2 className="text-xl sm:text-2xl font-bold text-center mb-6 sm:mb-10">
               Ожидаемый эффект
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
               <Card
                 hoverable
                 variant="borderless"
@@ -169,11 +169,11 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="text-center py-20 pb-10">
-            <h3 className="text-xl font-semibold mb-4">
+          <section className="text-center py-10 sm:py-20 pb-10">
+            <h3 className="text-lg sm:text-xl font-semibold mb-4">
               Готовы автоматизировать рутину?
             </h3>
-            <p className="text-[1.15rem] text-[#4b4b53] mb-10">
+            <p className="text-base sm:text-[1.15rem] text-[#4b4b53] mb-6 sm:mb-10">
               Используйте MoodBrief для оптимизации предпроектной подготовки уже
               сегодня.
             </p>

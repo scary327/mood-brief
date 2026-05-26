@@ -139,10 +139,10 @@ export default function DashboardPage() {
               На главную
             </Button>
             <div className="text-center">
-              <h1 className="text-[2.5rem] font-extrabold bg-gradient-to-r from-[#1d1d1f] to-[#7d7d85] bg-clip-text text-transparent tracking-[-0.04em] leading-tight mb-2">
+              <h1 className="text-3xl sm:text-4xl md:text-[2.5rem] font-extrabold bg-gradient-to-r from-[#1d1d1f] to-[#7d7d85] bg-clip-text text-transparent tracking-[-0.04em] leading-tight mb-2">
                 Дашборд
               </h1>
-              <p className="text-[1.1rem] text-[#4b4b53] max-w-[600px] mx-auto">
+              <p className="text-base sm:text-[1.1rem] text-[#4b4b53] max-w-[600px] mx-auto">
                 Все ваши проекты и сгенерированные ТЗ
               </p>
             </div>
@@ -308,12 +308,12 @@ export default function DashboardPage() {
 
           {/* Bottom action buttons */}
           {projects.length > 0 && (
-            <div className="flex justify-center gap-3 pb-4 flex-wrap">
+            <div className="flex flex-col sm:flex-row justify-center gap-3 pb-4">
               <Button
                 size="large"
                 shape="round"
                 icon={<PlusOutlined />}
-                className="!h-14 !px-10 !text-[1.1rem] !bg-white/50 !border-transparent"
+                className="!h-12 sm:!h-14 !px-6 sm:!px-10 !text-base sm:!text-[1.1rem] !bg-white/50 !border-transparent w-full sm:w-auto"
                 onClick={() => router.push("/moodboard")}
               >
                 Новый проект
@@ -330,7 +330,7 @@ export default function DashboardPage() {
                   size="large"
                   shape="round"
                   icon={<PlusOutlined />}
-                  className="!h-14 !px-8 !text-[1.1rem] !border-rose-200 !text-rose-400 !bg-rose-50/50"
+                  className="!h-12 sm:!h-14 !px-6 sm:!px-8 !text-base sm:!text-[1.1rem] !border-rose-200 !text-rose-400 !bg-rose-50/50 w-full sm:w-auto"
                 >
                   Очистить историю
                 </Button>

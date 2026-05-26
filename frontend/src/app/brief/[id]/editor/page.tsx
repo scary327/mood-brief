@@ -187,6 +187,7 @@ export default function EditorPage() {
         />
 
         <Breadcrumb
+          className="hidden sm:block"
           style={{ flex: 1, fontSize: "0.85rem" }}
           items={[
             { title: <span style={{ cursor: "pointer" }} onClick={() => router.push("/dashboard")}>Дашборд</span> },
@@ -194,8 +195,12 @@ export default function EditorPage() {
             { title: "Редактор" },
           ]}
         />
+        <span className="flex-1 sm:hidden" />
 
-        <span style={{ fontSize: "0.8rem", color: "#7d7d85", marginLeft: "auto" }}>
+        <span
+          className="hidden md:inline"
+          style={{ fontSize: "0.8rem", color: "#7d7d85", marginLeft: "auto" }}
+        >
           {templateLabel}
         </span>
 
@@ -260,17 +265,21 @@ export default function EditorPage() {
       </div>
 
       {/* ── Main area ── */}
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+      <div
+        className={
+          mode === "split"
+            ? "flex flex-col md:flex-row flex-1 overflow-hidden"
+            : "flex flex-1 overflow-hidden"
+        }
+      >
         {/* Left: Editor */}
         {(mode === "edit" || mode === "split") && (
           <div
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              borderRight: mode === "split" ? "1px solid rgba(0,0,0,0.08)" : "none",
-              overflow: "hidden",
-            }}
+            className={
+              mode === "split"
+                ? "flex-1 flex flex-col overflow-hidden border-b md:border-b-0 md:border-r border-black/10 min-h-[40vh] md:min-h-0"
+                : "flex-1 flex flex-col overflow-hidden"
+            }
           >
             <div
               style={{
@@ -313,11 +322,12 @@ export default function EditorPage() {
         {/* Right: Preview */}
         {(mode === "preview" || mode === "split") && (
           <div
+            className={
+              mode === "split"
+                ? "flex-1 flex flex-col overflow-hidden min-h-[40vh] md:min-h-0"
+                : "flex-1 flex flex-col overflow-hidden"
+            }
             style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
               transition: "background 0.4s",
               background: justUpdated ? "#f0fdf4" : undefined,
             }}

@@ -134,6 +134,36 @@ export interface ProjectOut {
   created_at: string;
 }
 
+/**
+ * Ask the backend to download an image by URL (Pinterest pin page or direct
+ * image link) and return it as a browser File ready to feed into the analyze
+ * pipeline. Done server-side because Pinterest blocks cross-origin fetches.
+ */
+export async function fetchImageByUrl(url: string): Promise<File> {
+  const res = await apiFetch("/api/fetch-image-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) {
+    let msg = `Не удалось загрузить картинку (${res.status})`;
+    try {
+      const err = await res.json();
+      if (err?.detail) msg = err.detail;
+    } catch {
+      // ignore
+    }
+    throw new Error(msg);
+  }
+  const data: { filename: string; content_type: string; data_base64: string } =
+    await res.json();
+  // Decode base64 → Uint8Array → File so the rest of the upload code is unchanged.
+  const bin = atob(data.data_base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new File([bytes], data.filename, { type: data.content_type });
+}
+
 export async function analyzeImages(
   files: File[],
   projectName: string,

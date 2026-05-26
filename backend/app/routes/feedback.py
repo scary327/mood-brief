@@ -95,8 +95,21 @@ def submit_feedback(
 
 
 @router.get("/feedback/{project_id}")
-def get_feedback_for_project(project_id: str, db: Session = Depends(get_db)):
-    """Get published feedback for a project."""
+def get_feedback_for_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get published feedback for a project. Owner-only."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to view feedback for this project",
+        )
+
     items = (
         db.query(Feedback)
         .filter(Feedback.project_id == project_id, Feedback.is_published == True)

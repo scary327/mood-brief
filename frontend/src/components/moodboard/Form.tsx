@@ -28,6 +28,7 @@ import {
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import { useProjectStore } from "@/store/projectStore";
+import { fetchImageByUrl } from "@/lib/api";
 import TagList from "./TagList";
 
 const { TextArea } = Input;
@@ -112,6 +113,7 @@ export default function MoodBoardForm() {
   const [pickerColor, setPickerColor] = useState("#6366f1");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pinterestLink, setPinterestLink] = useState("");
+  const [pinterestLoading, setPinterestLoading] = useState(false);
   const [previews, setPreviews] = useState<string[]>([]);
 
   const addCustomColor = () => {
@@ -178,6 +180,22 @@ export default function MoodBoardForm() {
     await uploadAndAnalyze();
   };
 
+  const handleAddPinterest = async () => {
+    const url = pinterestLink.trim();
+    if (!url) return;
+    setPinterestLoading(true);
+    try {
+      const file = await fetchImageByUrl(url);
+      handleFilesChange([...uploadedFiles, file]);
+      setPinterestLink("");
+      message.success("Изображение добавлено");
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : "Не удалось загрузить");
+    } finally {
+      setPinterestLoading(false);
+    }
+  };
+
   const handleGenerate = async () => {
     const result = await doGenerateBrief(description);
     if (result) {
@@ -202,16 +220,16 @@ export default function MoodBoardForm() {
     <div className="container !gap-8">
       {/* Title */}
       <div className="text-center">
-        <h1 className="text-[2.5rem] font-extrabold bg-gradient-to-r from-[#1d1d1f] to-[#7d7d85] bg-clip-text text-transparent tracking-[-0.04em] leading-tight mb-2">
+        <h1 className="text-3xl sm:text-4xl md:text-[2.5rem] font-extrabold bg-gradient-to-r from-[#1d1d1f] to-[#7d7d85] bg-clip-text text-transparent tracking-[-0.04em] leading-tight mb-2">
           Новый мудборд
         </h1>
-        <p className="text-[1.1rem] text-[#4b4b53] max-w-[600px] mx-auto">
+        <p className="text-base sm:text-[1.1rem] text-[#4b4b53] max-w-[600px] mx-auto">
           Соберите визуальные предпочтения для генерации ТЗ
         </p>
       </div>
 
       {/* Project name */}
-      <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
+      <div className="bg-white/40 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
         <SectionHeader
           icon={<FileTextOutlined />}
           title="Название проекта"
@@ -227,7 +245,7 @@ export default function MoodBoardForm() {
       </div>
 
       {/* ── References / images ── */}
-      <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
+      <div className="bg-white/40 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
         <SectionHeader
           icon={<PictureOutlined />}
           title="Референсы"
@@ -324,16 +342,20 @@ export default function MoodBoardForm() {
           <div className="flex gap-2 flex-1 min-w-[250px]">
             <Input
               prefix={<LinkOutlined className="text-[#4b4b53]/50" />}
-              placeholder="Ссылка на доску Pinterest"
+              placeholder="Ссылка на пин / картинку Pinterest"
               value={pinterestLink}
               onChange={(e) => setPinterestLink(e.target.value)}
+              onPressEnter={handleAddPinterest}
               className="!rounded-full !bg-white/60 !border-black/6 !flex-1"
+              disabled={pinterestLoading}
             />
             <Button
               shape="round"
               type="primary"
+              loading={pinterestLoading}
               className="!bg-[#1d1d1f] !border-[#1d1d1f]"
-              disabled={!pinterestLink}
+              disabled={!pinterestLink || pinterestLoading}
+              onClick={handleAddPinterest}
             >
               Добавить
             </Button>
@@ -343,7 +365,7 @@ export default function MoodBoardForm() {
 
       {/* ── AI Tags ── */}
       {hasTags && (
-        <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
+        <div className="bg-white/40 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
           <SectionHeader
             icon={<span className="text-xl">🤖</span>}
             title="Распознанные теги"
@@ -354,7 +376,7 @@ export default function MoodBoardForm() {
       )}
 
       {/* ── Fonts ── */}
-      <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
+      <div className="bg-white/40 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
         <SectionHeader
           icon={<FontSizeOutlined />}
           title="Шрифты"
@@ -398,7 +420,7 @@ export default function MoodBoardForm() {
       </div>
 
       {/* ── Colors ── */}
-      <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
+      <div className="bg-white/40 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
         <SectionHeader
           icon={<BgColorsOutlined />}
           title="Цветовая палитра"
@@ -491,7 +513,7 @@ export default function MoodBoardForm() {
       </div>
 
       {/* ── Template Selection ── */}
-      <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
+      <div className="bg-white/40 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
         <SectionHeader
           icon={<FileTextOutlined />}
           title="Шаблон документа"
@@ -532,7 +554,7 @@ export default function MoodBoardForm() {
       </div>
 
       {/* ── Description ── */}
-      <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
+      <div className="bg-white/40 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)]">
         <SectionHeader
           icon={<FileTextOutlined />}
           title="Описание проекта"
@@ -568,7 +590,7 @@ export default function MoodBoardForm() {
           icon={<ArrowRightOutlined />}
           loading={isGenerating}
           disabled={!hasTags || isGenerating}
-          className="!h-14 !px-12 !text-[1.1rem] !bg-[#1d1d1f] !border-[#1d1d1f] !shadow-[0_8px_24px_rgba(29,29,31,0.2)]"
+          className="!h-12 sm:!h-14 !px-8 sm:!px-12 !text-base sm:!text-[1.1rem] !bg-[#1d1d1f] !border-[#1d1d1f] !shadow-[0_8px_24px_rgba(29,29,31,0.2)] w-full sm:w-auto max-w-sm"
           onClick={handleGenerate}
         >
           {isGenerating ? "Генерация ТЗ..." : "Сгенерировать ТЗ"}

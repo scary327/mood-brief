@@ -19,5 +19,19 @@ body {
 }
 
 .container {
-  @apply px-6 py-15 max-w-[1200px] mx-auto flex flex-col gap-15 min-h-screen justify-center;
+  @apply px-4 py-8 sm:px-6 sm:py-12 md:py-15 max-w-[1200px] mx-auto flex flex-col gap-8 sm:gap-12 md:gap-15 min-h-screen;
+}
+
+/* On larger screens we want the landing hero centered, but on phones a
+   tall vertical center pushes content off-screen — so center only ≥md. */
+@media (min-width: 768px) {
+  .container {
+    justify-content: center;
+  }
+}
+
+/* Antd inputs / buttons sometimes overflow on very narrow viewports. */
+input,
+textarea {
+  max-width: 100%;
 }

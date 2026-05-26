@@ -132,8 +132,8 @@ export default function BriefPage() {
       {/* Header */}
       <div className="text-center">
         <h1
+          className="text-3xl sm:text-4xl md:text-[2.2rem]"
           style={{
-            fontSize: "2.2rem",
             fontWeight: 800,
             background: "linear-gradient(to right, #1d1d1f, #7d7d85)",
             WebkitBackgroundClip: "text",
@@ -145,7 +145,7 @@ export default function BriefPage() {
         >
           {project.name}
         </h1>
-        <p style={{ fontSize: "1.05rem", color: "#4b4b53" }}>
+        <p className="text-base sm:text-[1.05rem]" style={{ color: "#4b4b53" }}>
           Техническое задание •{" "}
           <span style={{ fontWeight: 600 }}>{templateLabel}</span>
         </p>
@@ -154,16 +154,16 @@ export default function BriefPage() {
       {/* Brief content */}
       {project.brief_markdown && (
         <div
+          className="p-4 sm:p-8 rounded-2xl sm:rounded-3xl"
           style={{
             background: "rgba(255,255,255,0.4)",
             backdropFilter: "blur(24px)",
-            borderRadius: "1.5rem",
-            padding: "2rem",
             boxShadow: "0 2px 16px rgba(0,0,0,0.04)",
+            overflowX: "auto",
           }}
         >
           <div
-            className="prose prose-lg max-w-none
+            className="prose prose-sm sm:prose-lg max-w-none
               prose-headings:text-[#1d1d1f] prose-headings:tracking-[-0.02em]
               prose-p:text-[#4b4b53] prose-p:leading-relaxed
               prose-li:text-[#4b4b53]
@@ -176,14 +176,15 @@ export default function BriefPage() {
       )}
 
       {/* Action buttons */}
-      <div style={{ display: "flex", justifyContent: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap justify-center items-stretch sm:items-center gap-2 sm:gap-3">
         {project.brief_markdown && (
           <>
             <Button
               size="large"
               shape="round"
               icon={<EditOutlined />}
-              style={{ height: "3.25rem", padding: "0 1.75rem", fontSize: "1rem", background: "rgba(255,255,255,0.8)", border: "none" }}
+              className="!h-12 sm:!h-[3.25rem] !px-5 sm:!px-7 !text-sm sm:!text-base"
+              style={{ background: "rgba(255,255,255,0.8)", border: "none" }}
               onClick={() => router.push(`/brief/${id}/editor`)}
             >
               Редактировать
@@ -192,7 +193,8 @@ export default function BriefPage() {
               size="large"
               shape="round"
               icon={<CopyOutlined />}
-              style={{ height: "3.25rem", padding: "0 1.75rem", fontSize: "1rem", background: "rgba(255,255,255,0.8)", border: "none" }}
+              className="!h-12 sm:!h-[3.25rem] !px-5 sm:!px-7 !text-sm sm:!text-base"
+              style={{ background: "rgba(255,255,255,0.8)", border: "none" }}
               onClick={handleCopy}
             >
               Скопировать
@@ -206,7 +208,8 @@ export default function BriefPage() {
             shape="round"
             icon={<DownloadOutlined />}
             loading={downloadingPdf}
-            style={{ height: "3.25rem", padding: "0 2rem", fontSize: "1rem", background: "#1d1d1f", borderColor: "#1d1d1f", boxShadow: "0 8px 24px rgba(29,29,31,0.2)" }}
+            className="!h-12 sm:!h-[3.25rem] !px-6 sm:!px-8 !text-sm sm:!text-base"
+            style={{ background: "#1d1d1f", borderColor: "#1d1d1f", boxShadow: "0 8px 24px rgba(29,29,31,0.2)" }}
             onClick={handleDownloadPdf}
           >
             Скачать PDF
@@ -216,7 +219,8 @@ export default function BriefPage() {
           size="large"
           shape="round"
           icon={<HomeOutlined />}
-          style={{ height: "3.25rem", padding: "0 1.75rem", fontSize: "1rem", background: "rgba(255,255,255,0.5)", border: "none" }}
+          className="!h-12 sm:!h-[3.25rem] !px-5 sm:!px-7 !text-sm sm:!text-base"
+          style={{ background: "rgba(255,255,255,0.5)", border: "none" }}
           onClick={() => router.push("/dashboard")}
         >
           Дашборд

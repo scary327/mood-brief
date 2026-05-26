@@ -1,5 +1,7 @@
 import logging
 import re
+import time
+from collections import defaultdict, deque
 from datetime import timedelta
 from typing import Optional
 
@@ -22,6 +24,38 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+# ── In-process rate limit for login/register ────────────────────────────────
+# Per-IP sliding window. This is intentionally small — for a single-node test
+# deployment behind nginx it's enough to slow down credential brute force.
+# For multi-node prod replace with Redis-backed slowapi.
+_RATE_WINDOW_SECONDS = 60
+_RATE_MAX_REQUESTS = 10
+_rate_buckets: dict[str, deque[float]] = defaultdict(deque)
+
+
+def _client_ip(request: Request) -> str:
+    # nginx sets X-Forwarded-For; trust only the leftmost value.
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _check_rate_limit(request: Request, bucket: str) -> None:
+    key = f"{bucket}:{_client_ip(request)}"
+    now = time.monotonic()
+    q = _rate_buckets[key]
+    cutoff = now - _RATE_WINDOW_SECONDS
+    while q and q[0] < cutoff:
+        q.popleft()
+    if len(q) >= _RATE_MAX_REQUESTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many attempts. Try again in a minute.",
+        )
+    q.append(now)
+
+
 def validate_password(password: str) -> tuple[bool, str]:
     """
     Validate password requirements.
@@ -37,8 +71,9 @@ def validate_password(password: str) -> tuple[bool, str]:
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
-def register(body: UserRegister, db: Session = Depends(get_db)):
+def register(body: UserRegister, request: Request, db: Session = Depends(get_db)):
     """Register a new user."""
+    _check_rate_limit(request, "register")
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == body.email).first()
     if existing_user:
@@ -79,8 +114,14 @@ def register(body: UserRegister, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: UserLogin, response: Response, db: Session = Depends(get_db)):
+def login(
+    body: UserLogin,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
     """Authenticate user and return tokens."""
+    _check_rate_limit(request, "login")
     # Find user by email
     user = db.query(User).filter(User.email == body.email).first()
     if not user:
@@ -101,13 +142,15 @@ def login(body: UserLogin, response: Response, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
-    # Set refresh token as httpOnly cookie
+    # Set refresh token as httpOnly cookie. secure/samesite are
+    # configurable so the same code works for HTTP test servers and HTTPS
+    # production — see settings.COOKIE_SECURE / COOKIE_SAMESITE.
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,  # Set to True in production (HTTPS only)
-        samesite="strict",
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
         max_age=60 * 60 * 24 * settings.REFRESH_TOKEN_EXPIRE_DAYS,
     )
 
@@ -118,38 +161,6 @@ def login(body: UserLogin, response: Response, db: Session = Depends(get_db)):
         "token_type": "bearer",
         "refresh_token": refresh_token,  # Also return in body for mobile/SPA
     }
-
-
-@router.post("/refresh", response_model=TokenResponse)
-def refresh(request_cookies: dict = None, db: Session = Depends(get_db)):
-    """
-    Refresh access token using refresh token from cookies.
-    For manual refresh: pass refresh_token in Authorization header as Bearer token.
-    """
-    # Try to get refresh token from cookies (for web)
-    from fastapi import Request
-
-    def get_refresh_token(req: Request):
-        return req.cookies.get("refresh_token")
-
-    # This is a workaround - in real scenario would use Request object
-    # For now, we'll accept both cookie and body
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate refresh token",
-    )
-
-    # Try to get from body (for testing/SPA)
-    # In production: refresh token should ONLY be in httpOnly cookie
-    # This endpoint should be called with credentials include by frontend
-    # FastAPI will automatically send cookies if request.credentials = "include"
-
-    # For now, we need a workaround since we can't directly access cookies in dependency
-    # The refresh token might be passed in Authorization header for SPA
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Use POST /api/auth/refresh with cookie",
-    )
 
 
 @router.post("/refresh-token", response_model=TokenResponse)

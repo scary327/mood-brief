@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.routes import analyze, brief, projects, feedback, auth
+from app.routes import analyze, brief, projects, feedback, auth, fetch_url
 
 
 logging.basicConfig(level=logging.INFO)
@@ -15,10 +15,13 @@ app = FastAPI(title="MoodBrief API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
-    # Match any VS Code devtunnels host (e.g. https://abc-3000.euw.devtunnels.ms)
-    # so we don't have to edit BACKEND_CORS_ORIGINS every time the tunnel ID
-    # rotates or a new port is forwarded.
-    allow_origin_regex=r"https://[a-z0-9-]+\.[a-z0-9-]+\.devtunnels\.ms",
+    # The devtunnels regex is gated by an explicit flag — in production we
+    # don't want random *.devtunnels.ms forwarders to talk to the API.
+    allow_origin_regex=(
+        r"https://[a-z0-9-]+\.[a-z0-9-]+\.devtunnels\.ms"
+        if settings.ALLOW_DEVTUNNELS
+        else None
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,9 +40,10 @@ def _allowed_origin(request: Request) -> str | None:
         return None
     if origin in settings.BACKEND_CORS_ORIGINS:
         return origin
-    import re
-    if re.fullmatch(r"https://[a-z0-9-]+\.[a-z0-9-]+\.devtunnels\.ms", origin):
-        return origin
+    if settings.ALLOW_DEVTUNNELS:
+        import re
+        if re.fullmatch(r"https://[a-z0-9-]+\.[a-z0-9-]+\.devtunnels\.ms", origin):
+            return origin
     return None
 
 
@@ -66,6 +70,7 @@ app.include_router(analyze.router)
 app.include_router(brief.router)
 app.include_router(projects.router)
 app.include_router(feedback.router)
+app.include_router(fetch_url.router)
 
 
 

@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["analyze"])
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB per file
+MAX_FILES = 10  # match the frontend Dragger maxCount
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 
 
@@ -31,6 +32,11 @@ async def analyze_images(
 
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
+    if len(files) > MAX_FILES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many files (max {MAX_FILES})",
+        )
 
     # Validate files
     for f in files:
@@ -57,7 +63,12 @@ async def analyze_images(
         if len(content) > MAX_FILE_SIZE:
             logger.warning("File %s exceeds max size, skipping", upload.filename)
             return ImageTagSet(filename=upload.filename or "")
-        return await deconstruct_image_to_tags(content, filename=upload.filename or "")
+        return await deconstruct_image_to_tags(
+            content,
+            filename=upload.filename or "",
+            project_name=project_name,
+            description=description,
+        )
 
     tags = await asyncio.gather(*[_analyze_one(f) for f in files])
     tags_list = list(tags)

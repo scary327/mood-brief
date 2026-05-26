@@ -21,7 +21,10 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Собираем оптимизированный билд
+# Сборка Next 16 с Turbopack может съесть 3–4 GB RAM и упасть OOM на
+# небольших VPS. Поднимаем лимит heap и собираем через webpack
+# (см. флаг --webpack в package.json) — медленнее, зато стабильно.
+ENV NODE_OPTIONS=--max-old-space-size=2048
 RUN npm run build
 
 # ЭТАП 3: Рантайм (Минимальный образ)
